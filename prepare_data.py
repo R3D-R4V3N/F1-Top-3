@@ -22,6 +22,9 @@ def main():
     df_sessions = pd.read_csv(files['sessions'], parse_dates=['date_start'])
     df_weather  = pd.read_csv(files['weather'])
 
+    # Gemiddelde weersdata per sessie berekenen
+    weather_agg = df_weather.groupby('session_key')[['air_temperature','track_temperature']].mean().reset_index()
+
     # 3. Hernoemen kolommen
     df_qual     = df_qual.rename(columns={'position':'grid_position'})
     df_results  = df_results.rename(columns={
@@ -98,17 +101,20 @@ def main():
         on=['season','round','constructorId'], how='left'
     )
 
-    # 13. Race-session mapping for weather
+    # 13. Qualifying-session mapping voor weerdata
     df_sessions['date_only'] = df_sessions['date_start'].dt.date
-    race_sessions = df_sessions[df_sessions['session_type']=='Race'][['date_only','session_key']]
+    qual_sessions = df_sessions[df_sessions['session_type']=='Qualifying'][['date_only','session_key']]
     df['date_only'] = df['date'].dt.date
-    df = df.merge(race_sessions, on='date_only', how='left')
+    df = df.merge(qual_sessions, on='date_only', how='left')
 
-    # 14. Weersdata mergen via session_key
+    # 14. Weersdata mergen via session_key (geaggregeerd)
     df = df.merge(
-        df_weather[['session_key','air_temperature','track_temperature']],
+        weather_agg,
         on='session_key', how='left'
     )
+
+    # Mogelijke duplicaten verwijderen na het mergen van weerdata
+    df = df.drop_duplicates(subset=['season','round','Driver.driverId'])
 
     # … na de existing rolling averages & weather-imputatie …
 
