@@ -3,8 +3,15 @@
 import streamlit as st
 import pandas as pd
 import joblib
-from sklearn.metrics import classification_report, roc_auc_score, roc_curve, precision_recall_curve
+from sklearn.metrics import (
+    classification_report,
+    roc_auc_score,
+    roc_curve,
+    precision_recall_curve,
+)
+from sklearn.inspection import permutation_importance
 import matplotlib.pyplot as plt
+import altair as alt
 
 st.title("F1 Top-3 Finish Predictie Dashboard")
 
@@ -108,3 +115,36 @@ ax2.set_xlabel('Recall')
 ax2.set_ylabel('Precision')
 ax2.set_title('Precision-Recall Curve')
 st.pyplot(fig2)
+
+# --- Feature importance via permutation importance ---
+st.subheader("Feature Importance")
+perm = permutation_importance(
+    pipeline, X_test, y_test, n_repeats=5, random_state=42, n_jobs=-1
+)
+imp_df = (
+    pd.DataFrame({"feature": feature_cols, "importance": perm.importances_mean})
+    .sort_values("importance", ascending=False)
+)
+fig3, ax3 = plt.subplots()
+ax3.barh(imp_df["feature"], imp_df["importance"])
+ax3.set_xlabel("Permutation Importance")
+ax3.invert_yaxis()
+st.pyplot(fig3)
+
+# --- Scatter plot of overtakes for selected race ---
+if "overtakes_count" in df_test.columns:
+    st.subheader("Grid Position vs Overtakes")
+    scatter_df = df_test[["grid_position", "overtakes_count", "Driver.driverId"]]
+    chart = (
+        alt.Chart(scatter_df)
+        .mark_circle(size=80)
+        .encode(
+            x="grid_position",
+            y="overtakes_count",
+            tooltip=["Driver.driverId", "grid_position", "overtakes_count"],
+        )
+        .interactive()
+    )
+    st.altair_chart(chart, use_container_width=True)
+else:
+    st.info("'overtakes_count' not available in dataset.")
