@@ -18,8 +18,16 @@ from sklearn.metrics import (
 )
 
 
-def main(export_csv=True, csv_path="model_performance.csv"):
-    """Train een XGBoost-model en exporteer optioneel de resultaten."""
+def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
+    """Train een XGBoost-model en retourneer het beste model.
+
+    Parameters
+    ----------
+    export_csv : bool, optional
+        Of de evaluatiemetrics naar ``csv_path`` weggeschreven moeten worden.
+    csv_path : str, optional
+        Pad waar het CSV-bestand met prestaties wordt opgeslagen.
+    """
 
     # 1. Laad de verwerkte data
     df = pd.read_csv('processed_data.csv')
@@ -105,6 +113,12 @@ def main(export_csv=True, csv_path="model_performance.csv"):
         }).set_index('Metric')
         perf_df.to_csv(csv_path)
         print(f"Model performance saved to {csv_path}")
+
+    return grid.best_estimator_
+
+def main():
+    build_and_train_pipeline()
+
 
 if __name__ == '__main__':
     main()
