@@ -1,7 +1,7 @@
 # train_model.py
 
 import pandas as pd
-from sklearn.model_selection import train_test_split, StratifiedKFold, GridSearchCV
+from sklearn.model_selection import TimeSeriesSplit, GridSearchCV
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.impute import SimpleImputer
@@ -28,8 +28,9 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
         Pad waar het CSV-bestand met prestaties wordt opgeslagen.
     """
 
-    # 1. Laad de verwerkte data
-    df = pd.read_csv('processed_data.csv')
+    # 1. Laad de verwerkte data en sorteer chronologisch
+    df = pd.read_csv('processed_data.csv', parse_dates=['date'])
+    df = df.sort_values('date')
 
     # 2. Definieer features & target
     numeric_feats = [
@@ -42,10 +43,10 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     X = df[numeric_feats + categorical_feats]
     y = df['top3']
 
-    # 3. Train/test-split
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, stratify=y, random_state=42
-    )
+    # 3. Tijdgebaseerde train/test-split (laatste 20% als test)
+    split_idx = int(len(df) * 0.8)
+    X_train, X_test = X.iloc[:split_idx], X.iloc[split_idx:]
+    y_train, y_test = y.iloc[:split_idx], y.iloc[split_idx:]
 
     # 4. Preprocessing pipelines
     num_pipe = Pipeline([
@@ -74,8 +75,8 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
         'clf__min_samples_split': [2, 5]
     }
 
-    # 7. GridSearchCV
-    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    # 7. GridSearchCV met time-series splits
+    cv = TimeSeriesSplit(n_splits=5)
     grid = GridSearchCV(
         pipe, param_grid,
         scoring=make_scorer(roc_auc_score),

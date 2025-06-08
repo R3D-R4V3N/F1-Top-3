@@ -77,22 +77,34 @@ def fetch_paginated(url: str) -> Iterator[Dict]:
 
 
 def fetch_openf1_data():
-    """Fetch and save OpenF1 weather and sessions."""
-    sess = fetch_json(f"{OPENF1_BASE}/sessions", {"meeting_key": "latest", "session_key": "latest"})
-    if not sess:
-        print("No OpenF1 session.")
-        return
-    mk, sk = sess[0]["meeting_key"], sess[0]["session_key"]
+    """Fetch OpenF1 sessions and qualifying weather for seasons >= MIN_SEASON."""
+    current_year = pd.Timestamp.now().year
 
-    weather = fetch_json(f"{OPENF1_BASE}/weather", {"meeting_key": mk, "session_key": sk})
-    if weather:
-        pd.json_normalize(weather).to_csv("openf1_weather.csv", index=False)
-        print("Wrote openf1_weather.csv")
+    sess_frames: List[pd.DataFrame] = []
+    weather_frames: List[pd.DataFrame] = []
 
-    sessions = fetch_json(f"{OPENF1_BASE}/sessions", {"meeting_key": mk})
-    if sessions:
-        pd.json_normalize(sessions).to_csv("openf1_sessions.csv", index=False)
+    for year in range(MIN_SEASON, current_year + 1):
+        print(f"Fetching OpenF1 sessions for {year}...")
+        sessions = fetch_json(f"{OPENF1_BASE}/sessions", {"year": year})
+        if not sessions:
+            continue
+        df_sess = pd.json_normalize(sessions)
+        sess_frames.append(df_sess)
+
+        qual_keys = df_sess[df_sess["session_type"] == "Qualifying"][["meeting_key", "session_key"]]
+        for mk, sk in qual_keys.itertuples(index=False):
+            weather = fetch_json(f"{OPENF1_BASE}/weather", {"meeting_key": mk, "session_key": sk})
+            if weather:
+                df_w = pd.json_normalize(weather)
+                weather_frames.append(df_w)
+
+    if sess_frames:
+        pd.concat(sess_frames, ignore_index=True).to_csv("openf1_sessions.csv", index=False)
         print("Wrote openf1_sessions.csv")
+
+    if weather_frames:
+        pd.concat(weather_frames, ignore_index=True).to_csv("openf1_weather.csv", index=False)
+        print("Wrote openf1_weather.csv")
 
 
 def fetch_jolpica_data():
