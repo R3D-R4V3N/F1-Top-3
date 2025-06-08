@@ -124,8 +124,16 @@ def get_pitstop_data(season: int, round: int) -> pd.DataFrame:
     return pd.DataFrame(columns=["driverId", "lap", "stop", "stopTime"])
 
 
-def fetch_openf1_data():
-    """Fetch OpenF1 sessions and qualifying weather for seasons >= MIN_SEASON."""
+def fetch_openf1_data(use_cache: bool = True):
+    """Fetch OpenF1 sessions and qualifying weather for seasons >= MIN_SEASON.
+
+    If ``use_cache`` is True and both ``openf1_sessions.csv`` and
+    ``openf1_weather.csv`` exist, skip the network requests.
+    """
+
+    if use_cache and os.path.exists("openf1_sessions.csv") and os.path.exists("openf1_weather.csv"):
+        print("Using cached OpenF1 data")
+        return
     current_year = pd.Timestamp.now().year
 
     sess_frames: List[pd.DataFrame] = []
@@ -155,8 +163,12 @@ def fetch_openf1_data():
         print("Wrote openf1_weather.csv")
 
 
-def fetch_jolpica_data():
-    """Fetch and save Jolpica endpoints for seasons >= MIN_SEASON."""
+def fetch_jolpica_data(use_cache: bool = True):
+    """Fetch and save Jolpica endpoints for seasons >= MIN_SEASON.
+
+    If ``use_cache`` is True and the target CSV for an endpoint already
+    exists, that endpoint is skipped.
+    """
     # Get seasons
     seasons_all: List[str] = []
     for page in fetch_paginated(f"{JOLPICA_BASE}/seasons/"):
@@ -185,6 +197,10 @@ def fetch_jolpica_data():
 
     # Process simple endpoints
     for ep, (table, record) in simple_eps.items():
+        out_name = f"jolpica_{ep}.csv"
+        if use_cache and os.path.exists(out_name):
+            print(f"Using cached {out_name}")
+            continue
         frames: List[pd.DataFrame] = []
         print(f"Fetching {ep} for seasons {seasons[0]} to {seasons[-1]}...")
         for season in seasons:
@@ -201,12 +217,15 @@ def fetch_jolpica_data():
                 df['source'] = ep
                 frames.append(df)
         if frames:
-            out_name = f"jolpica_{ep}.csv"
             pd.concat(frames, ignore_index=True).to_csv(out_name, index=False)
             print(f"Wrote {out_name}")
 
     # Process nested endpoints
     for ep, key in nested_eps.items():
+        out_name = f"jolpica_{ep}.csv"
+        if use_cache and os.path.exists(out_name):
+            print(f"Using cached {out_name}")
+            continue
         frames: List[pd.DataFrame] = []
         print(f"Fetching nested {ep} for seasons {seasons[0]} to {seasons[-1]}...")
         for season in seasons:
@@ -224,7 +243,6 @@ def fetch_jolpica_data():
                     df['source'] = ep
                     frames.append(df)
         if frames:
-            out_name = f"jolpica_{ep}.csv"
             pd.concat(frames, ignore_index=True).to_csv(out_name, index=False)
             print(f"Wrote {out_name}")
 
