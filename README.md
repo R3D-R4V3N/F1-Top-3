@@ -13,7 +13,7 @@ F1-Forecast is a small project that predicts which drivers will finish in the to
 | `train_model_lgbm.py` | Alternative model using LightGBM. |
 | `train_model_nested_cv.py` | Example of nested cross‑validation for more robust evaluation. |
 | `train_model_xgb.py` | Experimental model using XGBoost. |
-| `export_model.py` | Calls `build_and_train_pipeline()` from `train_model.py` and saves the best pipeline to `f1_top3_pipeline.joblib`. |
+| `export_model.py` | Calls `build_and_train_pipeline()` from the chosen training script and saves the best pipeline to `f1_top3_pipeline.joblib`. Use `--algo {rf,lgbm,xgb}` to select the algorithm. |
 | `infer.py` | Load the saved pipeline and generate top‑3 predictions for the most recent race in the dataset. |
 | `streamlit_app.py` | Streamlit dashboard to interactively explore predictions. |
 | `f1_api_docs.md` | Documentation snippets of the OpenF1 and Jolpica APIs. |
@@ -57,9 +57,9 @@ F1-Forecast is a small project that predicts which drivers will finish in the to
 
 4. **Export trained pipeline**
    ```bash
-   python export_model.py
+   python export_model.py --algo lgbm  # or rf/xgb
    ```
-   Saves the best pipeline from `train_model.py` to `f1_top3_pipeline.joblib`.
+   Saves the best pipeline from the selected algorithm to `f1_top3_pipeline.joblib`.
 
 5. **Make predictions**
    ```bash
@@ -78,7 +78,7 @@ F1-Forecast is a small project that predicts which drivers will finish in the to
 When new race data becomes available:
 1. Run `fetch_f1_data.py` again. The script fetches data for all seasons starting from 2022, so rerunning it will append the latest results and weather.
 2. Recreate `processed_data.csv` with `prepare_data.py`.
-3. Retrain the model (`train_model.py`) and export the updated pipeline (`export_model.py`).
+3. Retrain the model (`train_model.py`) and export the updated pipeline with `export_model.py --algo rf|lgbm|xgb`.
 4. Use `infer.py` or the Streamlit app to see predictions for the new race.
 
 ## Data sources
@@ -102,7 +102,7 @@ From a clean checkout:
 python fetch_f1_data.py
 python prepare_data.py
 python train_model.py
-python export_model.py
+python export_model.py --algo rf  # or lgbm/xgb
 python infer.py  # shows latest race prediction
 ```
 Optionally run the Streamlit dashboard as described above.
