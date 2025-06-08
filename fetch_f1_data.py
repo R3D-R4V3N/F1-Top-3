@@ -199,15 +199,24 @@ def fetch_jolpica_data(use_cache: bool = True):
     """Fetch and save Jolpica endpoints for seasons >= MIN_SEASON.
 
     If ``use_cache`` is True and the target CSV for an endpoint already
-    exists, that endpoint is skipped.
+    exists, that endpoint is skipped. If the seasons list cannot be
+    retrieved due to repeated API errors, an informative message is
+    printed and the function returns early.
     """
     # Get seasons
     seasons_all: List[str] = []
+    fetched_any_page = False
     for page in fetch_paginated(f"{JOLPICA_BASE}/seasons/"):
+        fetched_any_page = True
         for s in page.get("MRData", {}).get("SeasonTable", {}).get("Seasons", []):
             season = s.get("season")
             if season and season.isdigit():
                 seasons_all.append(season)
+
+    if not fetched_any_page:
+        print("Failed to retrieve seasons from Jolpica API due to repeated errors")
+        return
+
     seasons = [s for s in seasons_all if int(s) >= MIN_SEASON]
     if not seasons:
         print(f"No seasons >= {MIN_SEASON} found.")
