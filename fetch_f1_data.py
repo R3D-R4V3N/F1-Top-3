@@ -80,8 +80,18 @@ def fetch_paginated(url: str) -> Iterator[Dict]:
             break
 
 
-def get_lap_data(season: int, round: int) -> pd.DataFrame:
-    """Fetch lap-by-lap positions for a single race."""
+def get_lap_data(season: int, round: int, use_cache: bool = True) -> pd.DataFrame:
+    """Fetch lap-by-lap positions for a single race.
+
+    If ``use_cache`` is True, cached CSVs under ``CACHE_DIR`` are used and
+    written to avoid repeated network calls.
+    """
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    cache_file = os.path.join(CACHE_DIR, f"{season}-{round}_laps.csv")
+
+    if use_cache and os.path.exists(cache_file):
+        return pd.read_csv(cache_file)
+
     url = f"{JOLPICA_BASE}/{season}/{round}/laps.json"
     frames: List[Dict] = []
     for page in fetch_paginated(url):
@@ -99,12 +109,28 @@ def get_lap_data(season: int, round: int) -> pd.DataFrame:
                         }
                     )
     if frames:
-        return pd.DataFrame(frames)
-    return pd.DataFrame(columns=["driverId", "lap", "position", "time"])
+        df = pd.DataFrame(frames)
+        if use_cache:
+            df.to_csv(cache_file, index=False)
+        return df
+    empty_df = pd.DataFrame(columns=["driverId", "lap", "position", "time"])
+    if use_cache:
+        empty_df.to_csv(cache_file, index=False)
+    return empty_df
 
 
-def get_pitstop_data(season: int, round: int) -> pd.DataFrame:
-    """Fetch pit stop information for a single race."""
+def get_pitstop_data(season: int, round: int, use_cache: bool = True) -> pd.DataFrame:
+    """Fetch pit stop information for a single race.
+
+    Utilises CSV caching similar to :func:`get_lap_data` when ``use_cache`` is
+    True.
+    """
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    cache_file = os.path.join(CACHE_DIR, f"{season}-{round}_pitstops.csv")
+
+    if use_cache and os.path.exists(cache_file):
+        return pd.read_csv(cache_file)
+
     url = f"{JOLPICA_BASE}/{season}/{round}/pitstops.json"
     frames: List[Dict] = []
     for page in fetch_paginated(url):
@@ -120,8 +146,14 @@ def get_pitstop_data(season: int, round: int) -> pd.DataFrame:
                     }
                 )
     if frames:
-        return pd.DataFrame(frames)
-    return pd.DataFrame(columns=["driverId", "lap", "stop", "stopTime"])
+        df = pd.DataFrame(frames)
+        if use_cache:
+            df.to_csv(cache_file, index=False)
+        return df
+    empty_df = pd.DataFrame(columns=["driverId", "lap", "stop", "stopTime"])
+    if use_cache:
+        empty_df.to_csv(cache_file, index=False)
+    return empty_df
 
 
 def fetch_openf1_data(use_cache: bool = True):
