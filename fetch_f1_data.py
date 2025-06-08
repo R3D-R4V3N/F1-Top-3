@@ -76,6 +76,50 @@ def fetch_paginated(url: str) -> Iterator[Dict]:
             break
 
 
+def get_lap_data(season: int, round: int) -> pd.DataFrame:
+    """Fetch lap-by-lap positions for a single race."""
+    url = f"{JOLPICA_BASE}/{season}/{round}/laps.json"
+    frames: List[Dict] = []
+    for page in fetch_paginated(url):
+        races = page.get("MRData", {}).get("RaceTable", {}).get("Races", [])
+        for race in races:
+            for lap in race.get("Laps", []):
+                lap_num = int(lap.get("number", 0))
+                for timing in lap.get("Timings", []):
+                    frames.append(
+                        {
+                            "driverId": timing.get("driverId"),
+                            "lap": lap_num,
+                            "position": int(timing.get("position", 0)),
+                            "time": timing.get("time"),
+                        }
+                    )
+    if frames:
+        return pd.DataFrame(frames)
+    return pd.DataFrame(columns=["driverId", "lap", "position", "time"])
+
+
+def get_pitstop_data(season: int, round: int) -> pd.DataFrame:
+    """Fetch pit stop information for a single race."""
+    url = f"{JOLPICA_BASE}/{season}/{round}/pitstops.json"
+    frames: List[Dict] = []
+    for page in fetch_paginated(url):
+        races = page.get("MRData", {}).get("RaceTable", {}).get("Races", [])
+        for race in races:
+            for stop in race.get("PitStops", []):
+                frames.append(
+                    {
+                        "driverId": stop.get("driverId"),
+                        "lap": int(stop.get("lap", 0)),
+                        "stop": int(stop.get("stop", 0)),
+                        "stopTime": stop.get("duration") or stop.get("time"),
+                    }
+                )
+    if frames:
+        return pd.DataFrame(frames)
+    return pd.DataFrame(columns=["driverId", "lap", "stop", "stopTime"])
+
+
 def fetch_openf1_data():
     """Fetch OpenF1 sessions and qualifying weather for seasons >= MIN_SEASON."""
     current_year = pd.Timestamp.now().year

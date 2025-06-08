@@ -39,6 +39,7 @@ F1-Forecast is a small project that predicts which drivers will finish in the to
    - Add date‑based features (`month`, `weekday`).
    - Compute rolling averages: previous finish position and grid position per driver, plus average constructor finish.
    - Merge weather via `session_key` and impute missing values.
+   - Count on-track overtakes per driver using lap and pit stop data (`overtakes_count`).
    - Create interaction features: `grid_diff`, `Q3_diff`, `grid_temp_int`.
    The final CSV contains one row per driver per race with a boolean `top3` label.
 
@@ -47,7 +48,7 @@ F1-Forecast is a small project that predicts which drivers will finish in the to
    python train_model.py
    ```
    - Selects the following feature columns:
-     `grid_position`, `Q1_sec`, `Q2_sec`, `Q3_sec`, `month`, `weekday`, `avg_finish_pos`, `avg_grid_pos`, `avg_const_finish`, `air_temperature`, `track_temperature`, `grid_diff`, `Q3_diff`, `grid_temp_int`, `circuit_country`, `circuit_city`.
+    `grid_position`, `Q1_sec`, `Q2_sec`, `Q3_sec`, `month`, `weekday`, `avg_finish_pos`, `avg_grid_pos`, `avg_const_finish`, `air_temperature`, `track_temperature`, `grid_diff`, `Q3_diff`, `grid_temp_int`, `overtakes_count`, `circuit_country`, `circuit_city`.
    - Numerical features are median‑imputed and scaled; categorical features are one‑hot encoded.
    - A `RandomForestClassifier` is tuned with a small parameter grid.
    - Metrics such as ROC‑AUC, precision/recall and mean absolute error are printed.
