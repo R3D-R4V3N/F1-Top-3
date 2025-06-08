@@ -119,6 +119,46 @@ def get_lap_data(season: int, round: int, use_cache: bool = True) -> pd.DataFram
     return empty_df
 
 
+def compute_overtakes(
+    valid_laps_df: pd.DataFrame,
+    grid_df: pd.DataFrame,
+    include_grid: bool = True,
+) -> pd.DataFrame:
+    """Count overtakes per driver based on lap positions.
+
+    Parameters
+    ----------
+    valid_laps_df : pd.DataFrame
+        DataFrame of lap positions with columns ``driverId``, ``lap`` and ``position``.
+    grid_df : pd.DataFrame
+        Starting grid positions with column ``grid_position``.
+    include_grid : bool, optional
+        If True, include grid positions as lap 0 before computing overtakes.
+
+    Returns
+    -------
+    pd.DataFrame
+        ``driverId`` and ``overtakes_count`` columns.
+    """
+
+    if valid_laps_df.empty:
+        return pd.DataFrame(columns=["driverId", "overtakes_count"])
+
+    laps_df = valid_laps_df[["driverId", "lap", "position"]].copy()
+
+    if include_grid:
+        grid_lap0 = grid_df.rename(columns={"grid_position": "position"}).copy()
+        grid_lap0["lap"] = 0
+        laps_df = pd.concat([grid_lap0[["driverId", "lap", "position"]], laps_df], ignore_index=True)
+
+    laps_df = laps_df.sort_values(["driverId", "lap"])
+    laps_df["prev_pos"] = laps_df.groupby("driverId")["position"].shift(1)
+    laps_df["overtake_flag"] = (laps_df["prev_pos"] == laps_df["position"] + 1).astype(int)
+
+    overtake_counts = laps_df.groupby("driverId")["overtake_flag"].sum().reset_index()
+    return overtake_counts.rename(columns={"overtake_flag": "overtakes_count"})
+
+
 def get_pitstop_data(season: int, round: int, use_cache: bool = True) -> pd.DataFrame:
     """Fetch pit stop information for a single race.
 

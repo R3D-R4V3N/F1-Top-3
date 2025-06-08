@@ -7,7 +7,7 @@ F1-Forecast is a small project that predicts which drivers will finish in the to
 | File | Purpose |
 | --- | --- |
 | `fetch_f1_data.py` | Download raw data from the OpenF1 and Jolpica APIs. Weather and session data come from OpenF1, while historical race and qualifying data come from Jolpica (an Ergast-compatible API). Functions `get_lap_data()`, `get_pitstop_data()`, `fetch_openf1_data()` and `fetch_jolpica_data()` all accept a `use_cache` flag. Lap and pit stop CSVs are cached under `cache/`, while the other helpers skip downloads if their output files already exist. |
-| `prepare_data.py` | Merge the downloaded CSV files into `processed_data.csv`. It engineers features such as qualifying times in seconds, rolling averages per driver and constructor, weather information and custom interaction features. |
+| `prepare_data.py` | Merge the downloaded CSV files into `processed_data.csv`. It engineers features such as qualifying times in seconds, rolling averages per driver and constructor, weather information and custom interaction features. Flags `--grid` and `--no-sc` control how overtakes are counted. |
 | `eda_f1.py` | Simple exploratory analysis on the raw CSV files. |
 | `train_model.py` | Train the main RandomForest pipeline using the processed data. Hyperparameters are tuned with `GridSearchCV`. |
 | `train_model_lgbm.py` | Alternative model using LightGBM. |
@@ -34,7 +34,7 @@ F1-Forecast is a small project that predicts which drivers will finish in the to
 
 2. **Prepare dataset**
    ```bash
-   python prepare_data.py
+   python prepare_data.py [--grid] [--no-sc]
    ```
    Creates `processed_data.csv` by merging qualifying, race results, circuit info, sessions and weather. Important steps:
    - Convert qualifying times to seconds (`Q1_sec`, `Q2_sec`, `Q3_sec`).
@@ -42,6 +42,8 @@ F1-Forecast is a small project that predicts which drivers will finish in the to
    - Compute rolling averages: previous finish position and grid position per driver, plus average constructor finish.
    - Merge weather via `session_key` and impute missing values.
    - Count on-track overtakes per driver using lap and pit stop data (`overtakes_count`).
+   - Optional `--grid` flag injects starting grid positions as lap 0 when counting overtakes (useful when lap 0 is missing).
+   - Optional `--no-sc` flag removes safety-car and virtual safety-car laps before computing overtakes.
    - Create interaction features: `grid_diff`, `Q3_diff`, `grid_temp_int`.
    The final CSV contains one row per driver per race with a boolean `top3` label. `prepare_data.py` also downloads lap time and pit stop data for each race using the cached helpers (`use_cache=True`).
 
