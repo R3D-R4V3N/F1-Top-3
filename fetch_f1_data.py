@@ -80,71 +80,48 @@ def fetch_paginated(url: str) -> Iterator[Dict]:
             break
 
 
-def get_lap_data(season: int, round: int, use_cache: bool = True) -> pd.DataFrame:
-    """Return lap time data for a specific race.
-
-    If ``use_cache`` is True and a cached CSV exists, load from it instead of
-    hitting the network. After downloading new data, save it to the cache
-    directory for future runs.
-    """
-
-    os.makedirs(CACHE_DIR, exist_ok=True)
-    cache_file = os.path.join(CACHE_DIR, f"laps_{season}_{round}.csv")
-
-    if use_cache and os.path.exists(cache_file):
-        return pd.read_csv(cache_file)
-
-    url = f"{JOLPICA_BASE}/{season}/{round}/laps/"
-    frames: List[pd.DataFrame] = []
+def get_lap_data(season: int, round: int) -> pd.DataFrame:
+    """Fetch lap-by-lap positions for a single race."""
+    url = f"{JOLPICA_BASE}/{season}/{round}/laps.json"
+    frames: List[Dict] = []
     for page in fetch_paginated(url):
         races = page.get("MRData", {}).get("RaceTable", {}).get("Races", [])
         for race in races:
-            laps = race.get("Laps", [])
-            if not laps:
-                continue
-            df = pd.json_normalize(laps)
-            df["season"] = race.get("season", season)
-            df["round"] = race.get("round", round)
-            df["raceName"] = race.get("raceName")
-            frames.append(df)
+            for lap in race.get("Laps", []):
+                lap_num = int(lap.get("number", 0))
+                for timing in lap.get("Timings", []):
+                    frames.append(
+                        {
+                            "driverId": timing.get("driverId"),
+                            "lap": lap_num,
+                            "position": int(timing.get("position", 0)),
+                            "time": timing.get("time"),
+                        }
+                    )
+    if frames:
+        return pd.DataFrame(frames)
+    return pd.DataFrame(columns=["driverId", "lap", "position", "time"])
 
-    df_all = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
-    if use_cache:
-        df_all.to_csv(cache_file, index=False)
-
-    return df_all
-
-
-def get_pitstop_data(season: int, round: int, use_cache: bool = True) -> pd.DataFrame:
-    """Return pit stop data for a specific race with optional caching."""
-
-    os.makedirs(CACHE_DIR, exist_ok=True)
-    cache_file = os.path.join(CACHE_DIR, f"pits_{season}_{round}.csv")
-
-    if use_cache and os.path.exists(cache_file):
-        return pd.read_csv(cache_file)
-
-    url = f"{JOLPICA_BASE}/{season}/{round}/pitstops/"
-    frames: List[pd.DataFrame] = []
+def get_pitstop_data(season: int, round: int) -> pd.DataFrame:
+    """Fetch pit stop information for a single race."""
+    url = f"{JOLPICA_BASE}/{season}/{round}/pitstops.json"
+    frames: List[Dict] = []
     for page in fetch_paginated(url):
         races = page.get("MRData", {}).get("RaceTable", {}).get("Races", [])
         for race in races:
-            pits = race.get("PitStops", [])
-            if not pits:
-                continue
-            df = pd.json_normalize(pits)
-            df["season"] = race.get("season", season)
-            df["round"] = race.get("round", round)
-            df["raceName"] = race.get("raceName")
-            frames.append(df)
-
-    df_all = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
-
-    if use_cache:
-        df_all.to_csv(cache_file, index=False)
-
-    return df_all
+            for stop in race.get("PitStops", []):
+                frames.append(
+                    {
+                        "driverId": stop.get("driverId"),
+                        "lap": int(stop.get("lap", 0)),
+                        "stop": int(stop.get("stop", 0)),
+                        "stopTime": stop.get("duration") or stop.get("time"),
+                    }
+                )
+    if frames:
+        return pd.DataFrame(frames)
+    return pd.DataFrame(columns=["driverId", "lap", "stop", "stopTime"])
 
 
 def fetch_openf1_data():
