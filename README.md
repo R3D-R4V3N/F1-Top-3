@@ -6,7 +6,7 @@ F1-Forecast is a small project that predicts which drivers will finish in the to
 
 | File | Purpose |
 | --- | --- |
-| `fetch_f1_data.py` | Download raw data from the OpenF1 and Jolpica APIs. Weather and session data come from OpenF1, while historical race and qualifying data come from Jolpica (an Ergast-compatible API). Helper functions `get_lap_data()` and `get_pitstop_data()` (both accept a `use_cache` flag) cache their responses under `cache/`. |
+| `fetch_f1_data.py` | Download raw data from the OpenF1 and Jolpica APIs. Weather and session data come from OpenF1, while historical race and qualifying data come from Jolpica (an Ergast-compatible API). Functions `get_lap_data()`, `get_pitstop_data()`, `fetch_openf1_data()` and `fetch_jolpica_data()` all accept a `use_cache` flag. Lap and pit stop CSVs are cached under `cache/`, while the other helpers skip downloads if their output files already exist. |
 | `prepare_data.py` | Merge the downloaded CSV files into `processed_data.csv`. It engineers features such as qualifying times in seconds, rolling averages per driver and constructor, weather information and custom interaction features. |
 | `eda_f1.py` | Simple exploratory analysis on the raw CSV files. |
 | `train_model.py` | Train the main RandomForest pipeline using the processed data. Hyperparameters are tuned with `GridSearchCV`. |
@@ -30,7 +30,7 @@ F1-Forecast is a small project that predicts which drivers will finish in the to
    - OpenF1 `weather` and `sessions` for the latest meeting.
    - Jolpica endpoints (`circuits`, `races`, `results`, `sprint`, `qualifying`, `driverstandings`, `constructorstandings`, `status`) for seasons ≥2022.
    The raw JSON responses are normalized to CSV files (e.g. `jolpica_results.csv`, `openf1_weather.csv`).
-   Lap times and pit stops are fetched on demand via `get_lap_data()` and `get_pitstop_data()`. Their results are cached in the `cache/` directory so repeated runs avoid extra API calls.
+   Lap times and pit stops are fetched on demand via `get_lap_data()` and `get_pitstop_data()`. Their results are cached in the `cache/` directory so repeated runs avoid extra API calls. `fetch_openf1_data()` and `fetch_jolpica_data()` likewise skip downloads if the corresponding CSVs already exist when `use_cache=True`.
 
 2. **Prepare dataset**
    ```bash
