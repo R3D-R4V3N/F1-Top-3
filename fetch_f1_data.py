@@ -196,87 +196,28 @@ def fetch_openf1_data(use_cache: bool = True):
 
 
 def fetch_jolpica_data(use_cache: bool = True):
-    """Fetch and save Jolpica endpoints for seasons >= MIN_SEASON.
+    """Fetch lap and pit stop data incrementally.
 
-    If ``use_cache`` is True and the target CSV for an endpoint already
-    exists, that endpoint is skipped.
+    Only races without cached lap/pitstop files trigger new API calls. Existing
+    cache files are respected to avoid hitting rate limits.
     """
-    # Get seasons
-    seasons_all: List[str] = []
-    for page in fetch_paginated(f"{JOLPICA_BASE}/seasons/"):
-        for s in page.get("MRData", {}).get("SeasonTable", {}).get("Seasons", []):
-            season = s.get("season")
-            if season and season.isdigit():
-                seasons_all.append(season)
-    seasons = [s for s in seasons_all if int(s) >= MIN_SEASON]
-    if not seasons:
-        print(f"No seasons >= {MIN_SEASON} found.")
-        return
 
-    # Define endpoints
-    simple_eps = {
-        "circuits": ("CircuitTable", "Circuits"),
-        "races": ("RaceTable", "Races"),
-        "driverstandings": ("StandingsTable", "StandingsLists"),
-        "constructorstandings": ("StandingsTable", "StandingsLists"),
-        "status": ("StatusTable", "Statuses"),
-    }
-    nested_eps = {
-        "results": "Results",
-        "sprint": "SprintResults",
-        "qualifying": "QualifyingResults",
-    }
+    seasons = [2022, 2023, 2024, 2025]
+    rounds = range(1, 26)  # max rounds per season
 
-    # Process simple endpoints
-    for ep, (table, record) in simple_eps.items():
-        out_name = f"jolpica_{ep}.csv"
-        if use_cache and os.path.exists(out_name):
-            print(f"Using cached {out_name}")
-            continue
-        frames: List[pd.DataFrame] = []
-        print(f"Fetching {ep} for seasons {seasons[0]} to {seasons[-1]}...")
-        for season in seasons:
-            url = f"{JOLPICA_BASE}/{season}/{ep}/"
-            for page in fetch_paginated(url):
-                data = page.get("MRData", {}).get(table, {})
-                recs = data.get(record, [])
-                if not recs:
-                    continue
-                df = pd.json_normalize(recs)
-                df['season'] = season
-                if record in ['Races', 'DriverStandings', 'ConstructorStandings', 'Statuses'] and 'round' in df.columns:
-                    df['round'] = df['round']
-                df['source'] = ep
-                frames.append(df)
-        if frames:
-            pd.concat(frames, ignore_index=True).to_csv(out_name, index=False)
-            print(f"Wrote {out_name}")
+    missing: List[tuple] = []
+    for s in seasons:
+        for r in rounds:
+            lap_file = os.path.join(CACHE_DIR, f"{s}-{r}_laps.csv")
+            pit_file = os.path.join(CACHE_DIR, f"{s}-{r}_pitstops.csv")
+            if not (os.path.exists(lap_file) and os.path.exists(pit_file)):
+                missing.append((s, r))
 
-    # Process nested endpoints
-    for ep, key in nested_eps.items():
-        out_name = f"jolpica_{ep}.csv"
-        if use_cache and os.path.exists(out_name):
-            print(f"Using cached {out_name}")
-            continue
-        frames: List[pd.DataFrame] = []
-        print(f"Fetching nested {ep} for seasons {seasons[0]} to {seasons[-1]}...")
-        for season in seasons:
-            url = f"{JOLPICA_BASE}/{season}/{ep}/"
-            for page in fetch_paginated(url):
-                races = page.get("MRData", {}).get("RaceTable", {}).get("Races", [])
-                for r in races:
-                    recs = r.get(key, [])
-                    if not recs:
-                        continue
-                    df = pd.json_normalize(recs)
-                    df['season'] = r.get('season', season)
-                    df['round'] = r.get('round')
-                    df['raceName'] = r.get('raceName')
-                    df['source'] = ep
-                    frames.append(df)
-        if frames:
-            pd.concat(frames, ignore_index=True).to_csv(out_name, index=False)
-            print(f"Wrote {out_name}")
+    print(f"Te fetchen races: {len(missing)}")
+    for season, rnd in missing:
+        print(f"Ophalen race {season} ronde {rnd}...")
+        get_lap_data(season, rnd, use_cache=False)
+        get_pitstop_data(season, rnd, use_cache=False)
 
 
 def main():
