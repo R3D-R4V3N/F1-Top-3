@@ -1,6 +1,25 @@
 # prepare_data.py
 
 import pandas as pd
+from fetch_f1_data import get_lap_data, get_pitstop_data
+
+
+def compute_overtakes(valid_laps_df: pd.DataFrame) -> pd.DataFrame:
+    """Return overtakes_count per driver from valid (non-pit) laps."""
+    if valid_laps_df.empty:
+        return pd.DataFrame(columns=["driverId", "overtakes_count"])
+
+    valid_laps_df = valid_laps_df.sort_values(["driverId", "lap"])
+    valid_laps_df["prev_pos"] = (
+        valid_laps_df.groupby("driverId")["position"].shift(1)
+    )
+    valid_laps_df["overtake_flag"] = (
+        valid_laps_df["prev_pos"] == valid_laps_df["position"] + 1
+    ).astype(int)
+    overtake_counts = (
+        valid_laps_df.groupby("driverId")["overtake_flag"].sum().reset_index()
+    )
+    return overtake_counts.rename(columns={"overtake_flag": "overtakes_count"})
 
 
 def main():
@@ -43,6 +62,40 @@ def main():
         df_results[['season','round','raceName','Driver.driverId','finish_position','constructorId']],
         on=['season','round','raceName','Driver.driverId'], how='left'
     )
+
+    # --- Overtakes per race -------------------------------------------------
+    over_frames = []
+    for season, rnd in df_results[['season', 'round']].drop_duplicates().itertuples(index=False):
+        laps = get_lap_data(season=season, round=rnd)
+        pits = get_pitstop_data(season=season, round=rnd)
+        if laps is None or laps.empty:
+            continue
+        if pits is None:
+            pits = pd.DataFrame(columns=["driverId", "lap"])
+
+        valid_laps = laps.merge(
+            pits[['driverId', 'lap']],
+            on=['driverId', 'lap'],
+            how='left',
+            indicator=True
+        )
+        valid_laps = valid_laps.query("_merge=='left_only'").drop(columns=['_merge'])
+        overtakes = compute_overtakes(valid_laps)
+        overtakes['season'] = season
+        overtakes['round'] = rnd
+        over_frames.append(overtakes)
+
+    if over_frames:
+        df_overtakes = pd.concat(over_frames, ignore_index=True)
+    else:
+        df_overtakes = pd.DataFrame(columns=['driverId', 'overtakes_count', 'season', 'round'])
+
+    df = df.merge(
+        df_overtakes.rename(columns={'driverId': 'Driver.driverId'}),
+        on=['season', 'round', 'Driver.driverId'],
+        how='left'
+    )
+    df['overtakes_count'] = df['overtakes_count'].fillna(0)
 
     # 6. Doelvariabele
     df['finish_position'] = pd.to_numeric(df['finish_position'], errors='coerce')
