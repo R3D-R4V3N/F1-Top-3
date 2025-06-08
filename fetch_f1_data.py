@@ -1,3 +1,4 @@
+import os
 import requests
 import pandas as pd
 import time
@@ -16,6 +17,9 @@ WINDOW_START = time.time()
 
 # Minimum season to fetch
 MIN_SEASON = 2022
+
+# Directory to store cached API responses
+CACHE_DIR = "cache"
 
 
 def fetch_json(url: str, params: Optional[Dict] = None, retries: int = 3, backoff: float = 1.0) -> Optional[Dict]:
@@ -74,6 +78,73 @@ def fetch_paginated(url: str) -> Iterator[Dict]:
         offset += limit
         if offset >= total:
             break
+
+
+def get_lap_data(season: int, round: int, use_cache: bool = True) -> pd.DataFrame:
+    """Return lap time data for a specific race.
+
+    If ``use_cache`` is True and a cached CSV exists, load from it instead of
+    hitting the network. After downloading new data, save it to the cache
+    directory for future runs.
+    """
+
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    cache_file = os.path.join(CACHE_DIR, f"laps_{season}_{round}.csv")
+
+    if use_cache and os.path.exists(cache_file):
+        return pd.read_csv(cache_file)
+
+    url = f"{JOLPICA_BASE}/{season}/{round}/laps/"
+    frames: List[pd.DataFrame] = []
+    for page in fetch_paginated(url):
+        races = page.get("MRData", {}).get("RaceTable", {}).get("Races", [])
+        for race in races:
+            laps = race.get("Laps", [])
+            if not laps:
+                continue
+            df = pd.json_normalize(laps)
+            df["season"] = race.get("season", season)
+            df["round"] = race.get("round", round)
+            df["raceName"] = race.get("raceName")
+            frames.append(df)
+
+    df_all = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+
+    if use_cache:
+        df_all.to_csv(cache_file, index=False)
+
+    return df_all
+
+
+def get_pitstop_data(season: int, round: int, use_cache: bool = True) -> pd.DataFrame:
+    """Return pit stop data for a specific race with optional caching."""
+
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    cache_file = os.path.join(CACHE_DIR, f"pits_{season}_{round}.csv")
+
+    if use_cache and os.path.exists(cache_file):
+        return pd.read_csv(cache_file)
+
+    url = f"{JOLPICA_BASE}/{season}/{round}/pitstops/"
+    frames: List[pd.DataFrame] = []
+    for page in fetch_paginated(url):
+        races = page.get("MRData", {}).get("RaceTable", {}).get("Races", [])
+        for race in races:
+            pits = race.get("PitStops", [])
+            if not pits:
+                continue
+            df = pd.json_normalize(pits)
+            df["season"] = race.get("season", season)
+            df["round"] = race.get("round", round)
+            df["raceName"] = race.get("raceName")
+            frames.append(df)
+
+    df_all = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+
+    if use_cache:
+        df_all.to_csv(cache_file, index=False)
+
+    return df_all
 
 
 def fetch_openf1_data():

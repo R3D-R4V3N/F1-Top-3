@@ -1,6 +1,7 @@
 # prepare_data.py
 
 import pandas as pd
+from fetch_f1_data import get_lap_data, get_pitstop_data
 
 
 def main():
@@ -21,6 +22,12 @@ def main():
     df_circ     = pd.read_csv(files['circuits'])
     df_sessions = pd.read_csv(files['sessions'], parse_dates=['date_start'])
     df_weather  = pd.read_csv(files['weather'])
+
+    # Preload lap and pit stop data with caching
+    unique_races = df_races[['season', 'round']].drop_duplicates()
+    for season, rnd in unique_races.itertuples(index=False):
+        get_lap_data(season, rnd, use_cache=True)
+        get_pitstop_data(season, rnd, use_cache=True)
 
     # Gemiddelde weersdata per sessie berekenen
     weather_agg = df_weather.groupby('session_key')[['air_temperature','track_temperature']].mean().reset_index()
