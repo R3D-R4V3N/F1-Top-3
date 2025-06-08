@@ -1,3 +1,4 @@
+import os
 import requests
 import pandas as pd
 import time
@@ -16,6 +17,9 @@ WINDOW_START = time.time()
 
 # Minimum season to fetch
 MIN_SEASON = 2022
+
+# Directory to store cached API responses
+CACHE_DIR = "cache"
 
 
 def fetch_json(url: str, params: Optional[Dict] = None, retries: int = 3, backoff: float = 1.0) -> Optional[Dict]:
