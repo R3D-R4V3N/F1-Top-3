@@ -1,7 +1,8 @@
 # train_model.py
 
 import pandas as pd
-from sklearn.model_selection import TimeSeriesSplit, GridSearchCV
+from sklearn.model_selection import TimeSeriesSplit, GridSearchCV, learning_curve
+import numpy as np
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.impute import SimpleImputer
@@ -83,6 +84,18 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
         cv=cv, n_jobs=-1, verbose=1
     )
     grid.fit(X_train, y_train)
+
+    # 7b. Learning curve to detect over- or underfitting
+    train_sizes, train_scores, val_scores = learning_curve(
+        grid.best_estimator_, X, y,
+        cv=TimeSeriesSplit(n_splits=5), scoring='roc_auc',
+        train_sizes=np.linspace(0.1, 1.0, 5), n_jobs=-1
+    )
+    train_mean = np.mean(train_scores, axis=1)
+    val_mean = np.mean(val_scores, axis=1)
+    print("\nLearning curve (ROC AUC):")
+    for sz, tr, val in zip(train_sizes, train_mean, val_mean):
+        print(f"  {int(sz)} samples -> train {tr:.3f}, val {val:.3f}")
 
     # 8. Print performances
     print("Best parameters:", grid.best_params_)
