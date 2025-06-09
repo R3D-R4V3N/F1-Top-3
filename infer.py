@@ -2,6 +2,9 @@
 
 import pandas as pd
 import joblib
+import numpy as np
+import shap
+import matplotlib.pyplot as plt
 
 # Inference script: use only data up to the chosen race date to predict top-3 finishers
 
@@ -55,6 +58,21 @@ def inference_for_date(cutoff_date):
 
     print(f"Top-3 voorspellingen voor race op {cutoff_date.date()}:\n")
     print(top3.to_string(index=False))
+
+    # SHAP feature importance
+    try:
+        X_trans = pipeline.named_steps['pre'].transform(X_test)
+        explainer = shap.TreeExplainer(pipeline.named_steps['clf'])
+        shap_values = explainer.shap_values(X_trans)
+        if isinstance(shap_values, list):
+            shap_values = shap_values[1]
+        feature_names = pipeline.named_steps['pre'].get_feature_names_out()
+        shap.summary_plot(shap_values, features=X_trans, feature_names=feature_names, show=False)
+        plt.show()
+        imp = pd.DataFrame({'feature': feature_names, 'importance': np.abs(shap_values).mean(axis=0)})
+        print("\nTop SHAP features:\n", imp.sort_values('importance', ascending=False).head(10))
+    except Exception as e:
+        print(f"Could not plot SHAP values: {e}")
 
 if __name__ == '__main__':
     # Replace with desired race date for prediction/backtest
