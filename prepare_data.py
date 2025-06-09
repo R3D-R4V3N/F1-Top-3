@@ -5,8 +5,6 @@ from fetch_f1_data import get_lap_data, get_pitstop_data
 
 # In prepare_data.py, vervang je bestaande compute_overtakes door deze volledige, geüpdatete versie:
 
-import pandas as pd
-
 def compute_overtakes(valid_laps_df: pd.DataFrame) -> pd.DataFrame:
     """
     Gewogen en gefilterde overtakes-per-driver voor één race:

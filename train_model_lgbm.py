@@ -11,7 +11,6 @@ from sklearn.metrics import (
     classification_report,
     roc_auc_score,
     make_scorer,
-    confusion_matrix,
     precision_recall_curve,
     auc,
     mean_absolute_error,
