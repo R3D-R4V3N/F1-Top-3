@@ -32,10 +32,11 @@ def inference_for_date(cutoff_date):
 
     # 7. Feature columns exactly as trained
     feature_cols = [
-        'grid_position','Q1_sec','Q2_sec','Q3_sec',
-        'month','weekday','avg_finish_pos','avg_grid_pos','avg_const_finish',
-        'air_temperature','track_temperature','grid_diff','Q3_diff','grid_temp_int',
-        'circuit_country','circuit_city'
+        'grid_position', 'Q1_sec', 'Q2_sec', 'Q3_sec',
+        'month', 'weekday', 'avg_finish_pos', 'avg_grid_pos', 'avg_const_finish',
+        'air_temperature', 'track_temperature', 'grid_diff', 'Q3_diff', 'grid_temp_int',
+        'circuit_country', 'circuit_city',
+        'overtakes_count', 'weighted_overtakes'
     ]
     X_test = df_test[feature_cols]
 
