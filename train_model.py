@@ -1,7 +1,8 @@
 # train_model.py
 
 import pandas as pd
-from sklearn.model_selection import TimeSeriesSplit, GridSearchCV
+from sklearn.model_selection import TimeSeriesSplit, GridSearchCV, learning_curve
+import numpy as np
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.impute import SimpleImputer
@@ -87,6 +88,18 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     )
     grid.fit(X_train, y_train)
 
+    # 7b. Learning curve to detect over- or underfitting
+    train_sizes, train_scores, val_scores = learning_curve(
+        grid.best_estimator_, X, y,
+        cv=TimeSeriesSplit(n_splits=5), scoring='roc_auc',
+        train_sizes=np.linspace(0.1, 1.0, 5), n_jobs=-1
+    )
+    train_mean = np.mean(train_scores, axis=1)
+    val_mean = np.mean(val_scores, axis=1)
+    print("\nLearning curve (ROC AUC):")
+    for sz, tr, val in zip(train_sizes, train_mean, val_mean):
+        print(f"  {int(sz)} samples -> train {tr:.3f}, val {val:.3f}")
+
     # 8. Print performances
     print("Best parameters:", grid.best_params_)
     print(f"Best CV ROC AUC: {grid.best_score_:.3f}")
@@ -117,12 +130,26 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     print(miscl[['Driver.driverId','raceName','finish_position','pred','proba']].head(5))
 
     if export_csv:
-        perf_df = pd.DataFrame({
+        base_metrics = {
             'Metric': ['CV ROC AUC', 'Test ROC AUC', 'Mean Abs Error', 'PR AUC'],
             'Value': [grid.best_score_, roc_auc_score(y_test, y_proba), mae, pr_auc]
-        }).set_index('Metric')
+        }
+
+        # Breid uit met learning-curve resultaten
+        lc_metrics = []
+        lc_values = []
+        for sz, tr, val in zip(train_sizes, train_mean, val_mean):
+            lc_metrics.append(f'LC {int(sz)} Train ROC AUC')
+            lc_values.append(tr)
+            lc_metrics.append(f'LC {int(sz)} Val ROC AUC')
+            lc_values.append(val)
+
+        all_metrics = base_metrics['Metric'] + lc_metrics
+        all_values = base_metrics['Value'] + lc_values
+
+        perf_df = pd.DataFrame({'Metric': all_metrics, 'Value': all_values}).set_index('Metric')
         perf_df.to_csv(csv_path)
-        print(f"Model performance saved to {csv_path}")
+        print(f"Model performance and learning curve saved to {csv_path}")
 
     # Return de uiteindelijke pipeline
     return grid.best_estimator_
