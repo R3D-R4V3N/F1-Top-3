@@ -2,8 +2,7 @@
 
 import pandas as pd
 from sklearn.model_selection import (
-    train_test_split,
-    StratifiedKFold,
+    TimeSeriesSplit,
     GridSearchCV,
     learning_curve,
 )
@@ -35,8 +34,9 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
         Pad waar het CSV-bestand met prestaties wordt opgeslagen.
     """
 
-    # 1. Laad de verwerkte data
-    df = pd.read_csv('processed_data.csv')
+    # 1. Laad de verwerkte data en sorteer chronologisch
+    df = pd.read_csv('processed_data.csv', parse_dates=['date'])
+    df = df.sort_values('date')
 
     # 2. Definieer features en target
     numeric_feats = [
@@ -49,10 +49,10 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     X = df[numeric_feats + categorical_feats]
     y = df['top3']
 
-    # 3. Split in train/test
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, stratify=y, random_state=42
-    )
+    # 3. Tijdgebaseerde train/test-split (laatste 20% als test)
+    split_idx = int(len(df) * 0.8)
+    X_train, X_test = X.iloc[:split_idx], X.iloc[split_idx:]
+    y_train, y_test = y.iloc[:split_idx], y.iloc[split_idx:]
 
     # 4. Preprocessing pipelines
     numeric_transformer = Pipeline([
@@ -87,8 +87,8 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
         'clf__reg_lambda': [1.0, 1.5]
     }
 
-    # 7. GridSearchCV
-    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    # 7. GridSearchCV met time-series splits
+    cv = TimeSeriesSplit(n_splits=5)
     grid = GridSearchCV(
         estimator=pipe,
         param_grid=param_grid,
@@ -102,7 +102,7 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     # 7b. Learning curve to detect over- or underfitting
     train_sizes, train_scores, val_scores = learning_curve(
         grid.best_estimator_, X, y,
-        cv=StratifiedKFold(n_splits=5, shuffle=True, random_state=42),
+        cv=TimeSeriesSplit(n_splits=5),
         scoring='roc_auc',
         train_sizes=np.linspace(0.1, 1.0, 5),
         n_jobs=-1,
