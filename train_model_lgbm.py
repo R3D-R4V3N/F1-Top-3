@@ -75,12 +75,14 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
 
     # 6. LightGBM hyperparameter grid
     param_grid = {
-        'clf__n_estimators': [100, 300],
-        'clf__learning_rate': [0.01, 0.1],
-        'clf__num_leaves': [31, 63],
-        'clf__max_depth': [-1, 10]
+        'clf__n_estimators':      [100, 200, 300],
+        'clf__max_depth':         [3, 4, 5],
+        'clf__min_child_samples': [10, 20, 30],   # analoog aan min_samples_leaf
+        'clf__min_data_in_leaf':  [5, 10, 20],    # extra limitering
+        'clf__feature_fraction':  [0.6, 0.8, 1.0],# subset van features per iteratie
+        'clf__bagging_fraction':  [0.6, 0.8, 1.0],# subsampling van rijen
+        'clf__bagging_freq':      [1, 5]          # herhaal bagging elke 1 of 5 iteraties
     }
-
     # 7. GridSearchCV
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
     grid = GridSearchCV(

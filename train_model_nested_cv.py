@@ -44,11 +44,12 @@ def main(export_csv=True, csv_path="model_performance.csv"):
         ('clf', RandomForestClassifier(random_state=42))
     ])
     param_grid = {
-        'clf__n_estimators': [100, 200],
-        'clf__max_depth': [None, 5],
-        'clf__min_samples_split': [2, 5]
+        'clf__max_depth':        [3, 4],
+        'clf__subsample':        [0.7, 0.8],
+        'clf__colsample_bytree': [0.7, 0.8],
+        'clf__reg_lambda':       [1, 5],
+        # etc.
     }
-
     # 4. Inner CV for tuning
     inner_cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=1)
     grid = GridSearchCV(

@@ -71,9 +71,12 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
 
     # 6. Hyperparameter grid
     param_grid = {
-        'clf__n_estimators': [100, 200, 300],
-        'clf__max_depth':    [None, 5, 10],
-        'clf__min_samples_split': [2, 5]
+        'clf__n_estimators':       [100, 200, 300],
+        'clf__max_depth':          [3, 4, 5],            # minder diepe bomen
+        'clf__min_samples_split':  [10, 20],             # niet splitsen op kleine groepjes
+        'clf__min_samples_leaf':   [5, 10],              # minimaal 5–10 samples per blad
+        'clf__max_features':       ['sqrt', 0.8],        # subset van features per split
+        'clf__max_samples':        [0.7, 0.8, 1.0]       # elke boom traint op 70–100% van de rijen
     }
 
     # 7. GridSearchCV met time-series splits
