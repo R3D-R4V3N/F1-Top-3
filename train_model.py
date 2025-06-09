@@ -111,16 +111,16 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     # 5. Full pipeline
     pipe = Pipeline([
         ('pre', preprocessor),
-        ('clf', RandomForestClassifier(random_state=42))
+        ('clf', RandomForestClassifier(random_state=42, class_weight='balanced'))
     ])
 
     # 6. Hyperparameter grid
     # Iets uitgebreidere grid om mogelijke overfitting beter te controleren
     param_grid = {
         'clf__n_estimators': [200, 500],
-        'clf__max_depth':    [None, 5, 10, 20],
+        'clf__max_depth': [None, 3, 5, 10, 20],
         'clf__min_samples_split': [2, 5, 10],
-        'clf__min_samples_leaf': [1, 2, 4],
+        'clf__min_samples_leaf': [1, 2, 4, 6],
         'clf__max_features': ['sqrt', 'log2']
     }
 
@@ -155,6 +155,24 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     print("\nTestset performance:")
     print(classification_report(y_test, y_pred))
     print(f"Test ROC AUC: {roc_auc_score(y_test, y_proba):.3f}")
+
+    # 8b. Feature importances to check overtaking metrics
+    feature_names = grid.best_estimator_.named_steps['pre'].get_feature_names_out()
+    importances = grid.best_estimator_.named_steps['clf'].feature_importances_
+    fi_df = (
+        pd.DataFrame({'feature': feature_names, 'importance': importances})
+        .sort_values('importance', ascending=False)
+        .reset_index(drop=True)
+    )
+    fi_df.to_csv('feature_importance.csv', index=False)
+    print("\nTop feature importances:")
+    print(fi_df.head(10))
+    overtake_cols = [f for f in fi_df['feature'] if 'overtake' in f]
+    low_overtake = fi_df[fi_df['feature'].isin(overtake_cols) & (fi_df['importance'] < 0.01)]
+    if not low_overtake.empty:
+        print("\nOvertaking features with very low importance (<0.01):")
+        for _, row in low_overtake.iterrows():
+            print(f"  {row['feature']}: {row['importance']:.4f}")
 
     # **MAE erbij**
     mae = mean_absolute_error(y_test, y_proba)
