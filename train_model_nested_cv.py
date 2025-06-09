@@ -21,6 +21,9 @@ except ImportError:  # scikit-learn < 1.3
                 train_idx = np.where(np.isin(groups, train_groups))[0]
                 test_idx = np.where(np.isin(groups, test_groups))[0]
                 yield train_idx, test_idx
+
+        def get_n_splits(self, X=None, y=None, groups=None):
+            return self.n_splits
 from sklearn.model_selection import GridSearchCV, cross_val_score
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
