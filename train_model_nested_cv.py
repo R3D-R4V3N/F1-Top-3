@@ -30,6 +30,8 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.ensemble import RandomForestClassifier
+from lightgbm import LGBMClassifier
+from catboost import CatBoostClassifier
 from sklearn.metrics import (
     roc_auc_score,
 )
@@ -75,47 +77,76 @@ def main(export_csv=True, csv_path="model_performance.csv"):
         ('cat', cat_pipe, categorical_feats)
     ])
 
-    # 3. Full pipeline + param grid
-    pipe = Pipeline([
-        ('pre', pre),
-        ('clf', RandomForestClassifier(random_state=42))
-    ])
-    param_grid = {
-        'clf__n_estimators': [100, 200],
-        'clf__max_depth': [None, 5],
-        'clf__min_samples_split': [2, 5]
+    # 3. Definieer algoritmen en hyperparametergrids
+    algorithms = {
+        'RandomForest': {
+            'estimator': RandomForestClassifier(random_state=42),
+            'param_grid': {
+                'clf__n_estimators': [100, 200],
+                'clf__max_depth': [None, 5],
+                'clf__min_samples_split': [2, 5],
+            },
+        },
+        'LightGBM': {
+            'estimator': LGBMClassifier(random_state=42),
+            'param_grid': {
+                'clf__n_estimators': [200, 500],
+                'clf__learning_rate': [0.05, 0.1],
+                'clf__max_depth': [-1, 5],
+            },
+        },
+        'CatBoost': {
+            'estimator': CatBoostClassifier(random_state=42, verbose=0),
+            'param_grid': {
+                'clf__iterations': [200, 500],
+                'clf__depth': [6, 8],
+                'clf__learning_rate': [0.03, 0.1],
+            },
+        },
     }
 
-    # 4. Inner CV voor tuning met tijdreekssplits
-    inner_cv = GroupTimeSeriesSplit(n_splits=3)
-    grid = GridSearchCV(
-        pipe,
-        param_grid,
-        scoring='roc_auc',
-        cv=inner_cv,
-        n_jobs=-1,
-    )
+    results = {}
+    outer_cv = GroupTimeSeriesSplit(n_splits=6)
 
-    # 5. Outer CV voor evaluatie met tijdreekssplits
-    outer_cv = GroupTimeSeriesSplit(n_splits=5)
-    scores = []
-    for train_idx, test_idx in outer_cv.split(X, y, groups):
-        X_train, X_test = X.iloc[train_idx], X.iloc[test_idx]
-        y_train, y_test = y.iloc[train_idx], y.iloc[test_idx]
-        train_groups = groups[train_idx]
-        grid.fit(X_train, y_train, groups=train_groups)
-        y_pred = grid.predict_proba(X_test)[:, 1]
-        score = roc_auc_score(y_test, y_pred)
-        scores.append(score)
-    scores = np.array(scores)
-    print("Nested CV ROC AUC scores:", scores)
-    print("Mean & std:", scores.mean(), scores.std())
+    for name, cfg in algorithms.items():
+        pipe = Pipeline([
+            ('pre', pre),
+            ('clf', cfg['estimator'])
+        ])
+        inner_cv = GroupTimeSeriesSplit(n_splits=3)
+        grid = GridSearchCV(
+            pipe,
+            cfg['param_grid'],
+            scoring='roc_auc',
+            cv=inner_cv,
+            n_jobs=-1,
+        )
+
+        scores = []
+        for train_idx, test_idx in outer_cv.split(X, y, groups):
+            X_train, X_test = X.iloc[train_idx], X.iloc[test_idx]
+            y_train, y_test = y.iloc[train_idx], y.iloc[test_idx]
+            train_groups = groups[train_idx]
+            grid.fit(X_train, y_train, groups=train_groups)
+            y_pred = grid.predict_proba(X_test)[:, 1]
+            score = roc_auc_score(y_test, y_pred)
+            scores.append(score)
+        scores = np.array(scores)
+        results[name] = (scores.mean(), scores.std())
+        print(f"{name} ROC AUC scores:", scores)
+        print(f"{name} mean & std: {scores.mean():.4f} {scores.std():.4f}")
 
     if export_csv:
-        perf_df = pd.DataFrame({
-            'Metric': ['Nested CV ROC AUC Mean', 'Nested CV ROC AUC Std'],
-            'Value': [scores.mean(), scores.std()]
-        }).set_index('Metric')
+        data = {
+            'Algorithm': [],
+            'Mean': [],
+            'Std': [],
+        }
+        for alg, (m, s) in results.items():
+            data['Algorithm'].append(alg)
+            data['Mean'].append(m)
+            data['Std'].append(s)
+        perf_df = pd.DataFrame(data).set_index('Algorithm')
         perf_df.to_csv(csv_path)
         print(f"Model performance saved to {csv_path}")
 
