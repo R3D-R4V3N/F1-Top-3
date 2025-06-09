@@ -102,13 +102,23 @@ def build_and_train_pipeline(export_csv: bool = True, csv_path: str = "model_per
     # 5. Pipeline met LogisticRegression
     pipe = Pipeline([
         ('pre', preprocessor),
-        ('clf', LogisticRegression(max_iter=1000, solver='lbfgs'))
+        ('clf', LogisticRegression(max_iter=1000, solver='saga', class_weight='balanced'))
     ])
 
     # 6. Hyperparameter grid
-    param_grid = {
-        'clf__C': [0.1, 1.0, 10.0],
-    }
+    param_grid = [
+        {
+            'clf__C': [0.1, 1.0, 10.0],
+            'clf__penalty': ['l1', 'l2'],
+            'clf__solver': ['saga'],
+        },
+        {
+            'clf__C': [0.1, 1.0, 10.0],
+            'clf__penalty': ['elasticnet'],
+            'clf__solver': ['saga'],
+            'clf__l1_ratio': [0.5, 0.7],
+        }
+    ]
 
     # 7. GridSearchCV met GroupTimeSeriesSplit
     cv = GroupTimeSeriesSplit(n_splits=5)
