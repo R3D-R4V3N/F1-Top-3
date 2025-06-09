@@ -33,6 +33,22 @@ def inference_for_date(cutoff_date):
     )
     df['Q3_diff'] = df['driver_avg_Q3'] - df['Q3_sec']
     df['grid_temp_int'] = df['grid_position'] * df['track_temperature']
+    df['driver_points_prev'] = (
+        df.groupby('Driver.driverId')['driver_points']
+          .transform(lambda x: x.shift().expanding().mean())
+    )
+    df['driver_rank_prev'] = (
+        df.groupby('Driver.driverId')['driver_rank']
+          .transform(lambda x: x.shift().expanding().mean())
+    )
+    df['constructor_points_prev'] = (
+        df.groupby('constructorId')['constructor_points']
+          .transform(lambda x: x.shift().expanding().mean())
+    )
+    df['constructor_rank_prev'] = (
+        df.groupby('constructorId')['constructor_rank']
+          .transform(lambda x: x.shift().expanding().mean())
+    )
 
     # 5. Select only the rows of the cutoff_date for testing
     df_test = df[df['date'] == cutoff_date].copy()
@@ -45,6 +61,8 @@ def inference_for_date(cutoff_date):
         'grid_position', 'Q1_sec', 'Q2_sec', 'Q3_sec',
         'month', 'weekday', 'avg_finish_pos', 'avg_grid_pos', 'avg_const_finish',
         'air_temperature', 'track_temperature', 'grid_diff', 'Q3_diff', 'grid_temp_int',
+        'driver_points_prev', 'driver_rank_prev',
+        'constructor_points_prev', 'constructor_rank_prev',
         'circuit_country', 'circuit_city'
     ]
     X_test = df_test[feature_cols]

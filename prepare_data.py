@@ -1,6 +1,7 @@
 # prepare_data.py
 
 import pandas as pd
+import ast
 from fetch_f1_data import get_lap_data, get_pitstop_data
 
 # In prepare_data.py, vervang je bestaande compute_overtakes door deze volledige, geüpdatete versie:
@@ -90,6 +91,8 @@ def main():
     df_circ     = pd.read_csv(files['circuits'])
     df_sessions = pd.read_csv(files['sessions'], parse_dates=['date_start'])
     df_weather  = pd.read_csv(files['weather'])
+    df_drvstand = pd.read_csv('jolpica_driverstandings.csv')
+    df_constand = pd.read_csv('jolpica_constructorstandings.csv')
 
     # Preload lap and pit stop data with caching
     unique_races = df_races[['season', 'round']].drop_duplicates()
@@ -118,6 +121,65 @@ def main():
         df_results[['season','round','raceName','Driver.driverId','finish_position','constructorId']],
         on=['season','round','raceName','Driver.driverId'], how='left'
     )
+
+    # --- Driver and constructor standings ---------------------------------
+    driver_records = []
+    for _, row in df_drvstand.iterrows():
+        for entry in ast.literal_eval(row['DriverStandings']):
+            driver_records.append({
+                'season': row['season'],
+                'round': row['round'],
+                'Driver.driverId': entry['Driver']['driverId'],
+                'driver_points': float(entry['points']),
+                'driver_rank': int(entry['position'])
+            })
+    drv_df = pd.DataFrame(driver_records)
+    drv_df = drv_df.sort_values(['Driver.driverId','season','round'])
+    drv_df['driver_points_prev'] = (
+        drv_df.groupby('Driver.driverId')['driver_points']
+              .transform(lambda x: x.shift().expanding().mean())
+    )
+    drv_df['driver_rank_prev'] = (
+        drv_df.groupby('Driver.driverId')['driver_rank']
+              .transform(lambda x: x.shift().expanding().mean())
+    )
+
+    const_records = []
+    for _, row in df_constand.iterrows():
+        for entry in ast.literal_eval(row['ConstructorStandings']):
+            const_records.append({
+                'season': row['season'],
+                'round': row['round'],
+                'constructorId': entry['Constructor']['constructorId'],
+                'constructor_points': float(entry['points']),
+                'constructor_rank': int(entry['position'])
+            })
+    const_df = pd.DataFrame(const_records)
+    const_df = const_df.sort_values(['constructorId','season','round'])
+    const_df['constructor_points_prev'] = (
+        const_df.groupby('constructorId')['constructor_points']
+                .transform(lambda x: x.shift().expanding().mean())
+    )
+    const_df['constructor_rank_prev'] = (
+        const_df.groupby('constructorId')['constructor_rank']
+                .transform(lambda x: x.shift().expanding().mean())
+    )
+
+    df = df.merge(
+        drv_df[['season','round','Driver.driverId','driver_points','driver_rank','driver_points_prev','driver_rank_prev']],
+        on=['season','round','Driver.driverId'], how='left'
+    )
+    df = df.merge(
+        const_df[['season','round','constructorId','constructor_points','constructor_rank','constructor_points_prev','constructor_rank_prev']],
+        on=['season','round','constructorId'], how='left'
+    )
+
+    # Fill missing previous-standings with column medians
+    prev_cols = [
+        'driver_points_prev', 'driver_rank_prev',
+        'constructor_points_prev', 'constructor_rank_prev'
+    ]
+    df[prev_cols] = df[prev_cols].fillna(df[prev_cols].median())
 
     # --- Overtakes per race -------------------------------------------------
     over_frames = []
