@@ -46,7 +46,15 @@ def main(export_csv=True, csv_path="model_performance.csv"):
         'month', 'weekday', 'avg_finish_pos', 'avg_grid_pos', 'avg_const_finish',
         'air_temperature', 'track_temperature',
         'driver_points_prev', 'driver_rank_prev',
-        'constructor_points_prev', 'constructor_rank_prev'
+        'constructor_points_prev', 'constructor_rank_prev',
+
+        # Overtakes-features
+        'overtakes_count',             # absolute aantal inhaalacties vorige races
+        'weighted_overtakes',          # gewogen aantal inhaalacties
+        'overtakes_per_lap',           # genormaliseerd per lap
+        'weighted_overtakes_per_lap',   # gewogen én genormaliseerd
+        'ewma_overtakes_per_lap',
+        'ewma_weighted_overtakes_per_lap'
     ]
     categorical_feats = ['circuit_country','circuit_city']
     X = df[numeric_feats + categorical_feats]
