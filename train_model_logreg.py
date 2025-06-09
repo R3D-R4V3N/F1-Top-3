@@ -1,8 +1,32 @@
 # train_model_logreg.py
 
 import pandas as pd
-from sklearn.model_selection import TimeSeriesSplit, GridSearchCV, learning_curve
 import numpy as np
+try:
+    from sklearn.model_selection import GroupTimeSeriesSplit
+except ImportError:  # scikit-learn < 1.3
+    class GroupTimeSeriesSplit:
+        """Simple backport that keeps complete groups in each split."""
+
+        def __init__(self, n_splits: int = 5):
+            self.n_splits = n_splits
+
+        def split(self, X, y=None, groups=None):
+            if groups is None:
+                raise ValueError("The 'groups' parameter is required")
+            unique_groups = np.unique(groups)
+            n_groups = len(unique_groups)
+            test_size = n_groups // (self.n_splits + 1)
+            for i in range(self.n_splits):
+                train_end = test_size * (i + 1)
+                test_end = test_size * (i + 2)
+                train_groups = unique_groups[:train_end]
+                test_groups = unique_groups[train_end:test_end]
+                train_idx = np.where(np.isin(groups, train_groups))[0]
+                test_idx = np.where(np.isin(groups, test_groups))[0]
+                yield train_idx, test_idx
+
+from sklearn.model_selection import GridSearchCV, learning_curve
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.impute import SimpleImputer
@@ -29,16 +53,26 @@ def build_and_train_pipeline(export_csv: bool = True, csv_path: str = "model_per
     numeric_feats = [
         'grid_position', 'Q1_sec', 'Q2_sec', 'Q3_sec',
         'month', 'weekday', 'avg_finish_pos', 'avg_grid_pos', 'avg_const_finish',
-        'air_temperature', 'track_temperature', 'grid_diff', 'Q3_diff', 'grid_temp_int'
+        'air_temperature', 'track_temperature', 'grid_diff', 'Q3_diff', 'grid_temp_int',
+        'driver_points_prev', 'driver_rank_prev',
+        'constructor_points_prev', 'constructor_rank_prev'
     ]
     categorical_feats = ['circuit_country', 'circuit_city']
+    df['race_id'] = df['season'] * 100 + df['round']
     X = df[numeric_feats + categorical_feats]
     y = df['top3']
+    groups = df['race_id'].values
 
-    # 3. Train/test split
-    split_idx = int(len(df) * 0.8)
-    X_train, X_test = X.iloc[:split_idx], X.iloc[split_idx:]
-    y_train, y_test = y.iloc[:split_idx], y.iloc[split_idx:]
+    # 3. Train/test split op basis van race_id
+    unique_races = df['race_id'].drop_duplicates()
+    split_idx = int(len(unique_races) * 0.8)
+    train_races = unique_races.iloc[:split_idx]
+    test_races = unique_races.iloc[split_idx:]
+    train_mask = df['race_id'].isin(train_races)
+    test_mask = df['race_id'].isin(test_races)
+    X_train, X_test = X[train_mask], X[test_mask]
+    y_train, y_test = y[train_mask], y[test_mask]
+    train_groups = groups[train_mask]
 
     # 4. Preprocessing
     num_pipe = Pipeline([
@@ -65,8 +99,8 @@ def build_and_train_pipeline(export_csv: bool = True, csv_path: str = "model_per
         'clf__C': [0.1, 1.0, 10.0],
     }
 
-    # 7. GridSearchCV
-    cv = TimeSeriesSplit(n_splits=5)
+    # 7. GridSearchCV met GroupTimeSeriesSplit
+    cv = GroupTimeSeriesSplit(n_splits=5)
     grid = GridSearchCV(
         pipe,
         param_grid,
@@ -75,12 +109,13 @@ def build_and_train_pipeline(export_csv: bool = True, csv_path: str = "model_per
         n_jobs=-1,
         verbose=2,
     )
-    grid.fit(X_train, y_train)
+    grid.fit(X_train, y_train, groups=train_groups)
 
     # 7b. Learning curve
     train_sizes, train_scores, val_scores = learning_curve(
         grid.best_estimator_, X, y,
-        cv=TimeSeriesSplit(n_splits=5),
+        groups=groups,
+        cv=GroupTimeSeriesSplit(n_splits=5),
         scoring='roc_auc',
         train_sizes=np.linspace(0.1, 1.0, 5),
         n_jobs=-1,
