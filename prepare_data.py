@@ -242,8 +242,11 @@ def main():
     # 14a. Grid-difference feature
     df['grid_diff'] = df['avg_grid_pos'] - df['grid_position']
 
-    # 14b. Q3-difference feature (eerst per driver avg Q3_sec berekenen)
-    driver_q3 = df.groupby('Driver.driverId')['Q3_sec'].transform('mean')
+    # 14b. Q3-difference feature op basis van voorgaande races
+    df = df.sort_values(['Driver.driverId', 'date'])
+    driver_q3 = df.groupby('Driver.driverId')['Q3_sec'].transform(
+        lambda s: s.shift().expanding().mean()
+    )
     df['Q3_diff'] = driver_q3 - df['Q3_sec']
 
     # 14c. Interaction grid × track temperature
