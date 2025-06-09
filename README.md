@@ -48,6 +48,7 @@ F1-Forecast is a small project that predicts which drivers will finish in the to
     points and rank (`driver_points_prev`, `driver_rank_prev`,
     `constructor_points_prev`, `constructor_rank_prev`).
   - Create interaction features: `grid_diff`, `Q3_diff`, `grid_temp_int`.
+  - Compute teammate-based feature `grid_vs_teammate` from prior races.
    The final CSV contains one row per driver per race with a boolean `top3` label. `prepare_data.py` also downloads lap time and pit stop data for each race using the cached helpers (`use_cache=True`).
 
 3. **Train model**
@@ -57,8 +58,8 @@ F1-Forecast is a small project that predicts which drivers will finish in the to
    - Selects the following feature columns:
     `grid_position`, `Q1_sec`, `Q2_sec`, `Q3_sec`, `month`, `weekday`,
     `avg_finish_pos`, `avg_grid_pos`, `avg_const_finish`, `air_temperature`,
-    `track_temperature`, `grid_diff`, `Q3_diff`, `grid_temp_int`,
-    `driver_points_prev`, `driver_rank_prev`,
+   `track_temperature`, `grid_diff`, `Q3_diff`, `grid_temp_int`, `grid_vs_teammate`,
+   `driver_points_prev`, `driver_rank_prev`,
     `constructor_points_prev`, `constructor_rank_prev`,
    `circuit_country`, `circuit_city`.
    - Numerical features are median‑imputed and scaled; categorical features are one‑hot encoded.

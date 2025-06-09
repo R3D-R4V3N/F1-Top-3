@@ -26,6 +26,15 @@ def prepare_features(df_sub):
                              .transform(lambda x: x.shift().expanding().mean())
     df_sub['Q3_diff']        = df_sub['driver_avg_Q3'] - df_sub['Q3_sec']
     df_sub['grid_temp_int']  = df_sub['grid_position'] * df_sub['track_temperature']
+    df_sub['grid_vs_teammate'] = (
+        df_sub.groupby(['season', 'round', 'constructorId'])['grid_position']
+              .transform(lambda s: s - (s.sum() - s) / (len(s) - 1) if len(s) > 1 else 0)
+    )
+    df_sub['grid_vs_teammate'] = (
+        df_sub.groupby('Driver.driverId')['grid_vs_teammate']
+              .shift()
+    )
+    df_sub['grid_vs_teammate'] = df_sub['grid_vs_teammate'].fillna(df_sub['grid_vs_teammate'].median())
     df_sub['driver_points_prev'] = df_sub.groupby('Driver.driverId')['driver_points']\
                                    .transform(lambda x: x.shift().expanding().mean())
     df_sub['driver_rank_prev'] = df_sub.groupby('Driver.driverId')['driver_rank']\
@@ -63,6 +72,7 @@ feature_cols = [
     'grid_position', 'Q1_sec', 'Q2_sec', 'Q3_sec',
     'month', 'weekday', 'avg_finish_pos', 'avg_grid_pos', 'avg_const_finish',
     'air_temperature', 'track_temperature', 'grid_diff', 'Q3_diff', 'grid_temp_int',
+    'grid_vs_teammate',
     'driver_points_prev', 'driver_rank_prev',
     'constructor_points_prev', 'constructor_rank_prev',
     'circuit_country', 'circuit_city',

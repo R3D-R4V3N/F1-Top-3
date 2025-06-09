@@ -6,6 +6,7 @@ FEATURE_COLS = [
     'grid_position', 'Q1_sec', 'Q2_sec', 'Q3_sec',
     'month', 'weekday', 'avg_finish_pos', 'avg_grid_pos', 'avg_const_finish',
     'air_temperature', 'track_temperature', 'grid_diff', 'Q3_diff', 'grid_temp_int',
+    'grid_vs_teammate',
     'driver_points_prev', 'driver_rank_prev',
     'constructor_points_prev', 'constructor_rank_prev',
     'circuit_country', 'circuit_city',

@@ -15,7 +15,8 @@ df = df.sort_values('date')
 numeric_feats = [
     'grid_position','Q1_sec','Q2_sec','Q3_sec',
     'month','weekday','avg_finish_pos','avg_grid_pos','avg_const_finish',
-    'air_temperature','track_temperature','grid_diff','Q3_diff','grid_temp_int'
+    'air_temperature','track_temperature','grid_diff','Q3_diff','grid_temp_int',
+    'grid_vs_teammate'
 ]
 categorical_feats = ['circuit_country','circuit_city']
 feature_cols = numeric_feats + categorical_feats

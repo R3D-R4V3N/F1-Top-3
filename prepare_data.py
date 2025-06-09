@@ -278,6 +278,23 @@ def main():
     df[['avg_finish_pos','avg_grid_pos']] = df[['avg_finish_pos','avg_grid_pos']].fillna(
         df[['avg_finish_pos','avg_grid_pos']].median())
 
+    # Grid position relative to teammate (previous races only)
+    def teammate_diff(s: pd.Series) -> pd.Series:
+        if len(s) <= 1:
+            return pd.Series(0, index=s.index)
+        return s - (s.sum() - s) / (len(s) - 1)
+
+    df['grid_vs_teammate'] = (
+        df.groupby(['season', 'round', 'constructorId'])['grid_position']
+          .transform(teammate_diff)
+    )
+    df['grid_vs_teammate'] = (
+        df.sort_values(['Driver.driverId', 'date'])
+          .groupby('Driver.driverId')['grid_vs_teammate']
+          .shift()
+    )
+    df['grid_vs_teammate'] = df['grid_vs_teammate'].fillna(df['grid_vs_teammate'].median())
+
     # 12. Rolling averages per constructor
     const_df = df_results.merge(
         df_races[['season','round','raceName']], on=['season','round','raceName'], how='left'
