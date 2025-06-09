@@ -29,12 +29,13 @@ except ImportError:  # scikit-learn < 1.3
         def get_n_splits(self, X=None, y=None, groups=None):
             return self.n_splits
 
-from sklearn.model_selection import GridSearchCV, learning_curve
+from sklearn.model_selection import learning_curve
 from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.preprocessing import StandardScaler
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from catboost import CatBoostClassifier
+from sklearn.model_selection import ParameterGrid
 from sklearn.metrics import (
     classification_report,
     roc_auc_score,
@@ -76,15 +77,19 @@ def build_and_train_pipeline(export_csv: bool = True, csv_path: str = "model_per
 
     # 3. Tijdgebaseerde split op basis van unieke races
     unique_races = df['race_id'].drop_duplicates()
-    split_idx = int(len(unique_races) * 0.8)
-    train_races = unique_races.iloc[:split_idx]
-    test_races = unique_races.iloc[split_idx:]
+    train_end = int(len(unique_races) * 0.7)
+    val_end = int(len(unique_races) * 0.8)
+    train_races = unique_races.iloc[:train_end]
+    val_races = unique_races.iloc[train_end:val_end]
+    test_races = unique_races.iloc[val_end:]
+
     train_mask = df['race_id'].isin(train_races)
+    val_mask = df['race_id'].isin(val_races)
     test_mask = df['race_id'].isin(test_races)
-    X_train, X_test = X[train_mask], X[test_mask]
-    y_train, y_test = y[train_mask], y[test_mask]
+
+    X_train, X_val, X_test = X[train_mask], X[val_mask], X[test_mask]
+    y_train, y_val, y_test = y[train_mask], y[val_mask], y[test_mask]
     groups = df['race_id'].values
-    train_groups = groups[train_mask]
 
     # 4. Preprocessing
     num_pipe = Pipeline([
@@ -92,43 +97,57 @@ def build_and_train_pipeline(export_csv: bool = True, csv_path: str = "model_per
         ('scaler', StandardScaler())
     ])
     cat_pipe = Pipeline([
-        ('imputer', SimpleImputer(strategy='constant', fill_value='missing')),
-        ('onehot', OneHotEncoder(handle_unknown='ignore'))
+        ('imputer', SimpleImputer(strategy='constant', fill_value='missing'))
     ])
     preprocessor = ColumnTransformer([
         ('num', num_pipe, numeric_feats),
         ('cat', cat_pipe, categorical_feats)
     ])
 
-    # 5. Pipeline met CatBoost
-    pipe = Pipeline([
-        ('pre', preprocessor),
-        ('clf', CatBoostClassifier(random_state=42, verbose=0))
-    ])
+    # Fit preprocessor and transform datasets
+    X_train_p = preprocessor.fit_transform(X_train)
+    X_val_p = preprocessor.transform(X_val)
+    X_test_p = preprocessor.transform(X_test)
 
-    # 6. Hyperparameter grid
+    cat_indices = list(range(len(numeric_feats), len(numeric_feats) + len(categorical_feats)))
+
+    # 5. Uitgebreidere hyperparameter grid
     param_grid = {
-        'clf__iterations': [200, 500],
-        'clf__depth': [6, 8],
-        'clf__learning_rate': [0.03, 0.1],
-        'clf__l2_leaf_reg': [1, 3],
+        'iterations': [500, 1000],
+        'depth': [4, 6, 8],
+        'learning_rate': [0.01, 0.05, 0.1],
+        'l2_leaf_reg': [3, 5, 7],
+        'border_count': [64, 128],
     }
 
-    # 7. GridSearchCV
-    cv = GroupTimeSeriesSplit(n_splits=5)
-    grid = GridSearchCV(
-        pipe,
-        param_grid,
-        scoring='roc_auc',
-        cv=cv,
-        n_jobs=-1,
-        verbose=2,
-    )
-    grid.fit(X_train, y_train, groups=train_groups)
+    best_score = -np.inf
+    best_params = None
+    best_model = None
+    for params in ParameterGrid(param_grid):
+        model = CatBoostClassifier(random_state=42, verbose=0, **params)
+        model.fit(
+            X_train_p,
+            y_train,
+            eval_set=(X_val_p, y_val),
+            cat_features=cat_indices,
+            early_stopping_rounds=50,
+        )
+        proba_val = model.predict_proba(X_val_p)[:, 1]
+        auc_val = roc_auc_score(y_val, proba_val)
+        if auc_val > best_score:
+            best_score = auc_val
+            best_params = params
+            best_model = model
 
-    # 7b. Learning curve
+    # 6b. Learning curve met beste model (zonder early stopping)
+    pipe = Pipeline([
+        ('pre', preprocessor),
+        ('clf', CatBoostClassifier(random_state=42, verbose=0, **best_params))
+    ])
     train_sizes, train_scores, val_scores = learning_curve(
-        grid.best_estimator_, X, y,
+        pipe,
+        X,
+        y,
         groups=groups,
         cv=GroupTimeSeriesSplit(n_splits=5),
         scoring='roc_auc',
@@ -141,13 +160,12 @@ def build_and_train_pipeline(export_csv: bool = True, csv_path: str = "model_per
     for sz, tr, val in zip(train_sizes, train_mean, val_mean):
         print(f"  {int(sz)} samples -> train {tr:.3f}, val {val:.3f}")
 
-    # 8. Resultaten
-    print("=== CatBoost Best Params & CV ROC AUC ===")
-    print(grid.best_params_)
-    print(f"Best CV ROC AUC: {grid.best_score_:.3f}\n")
+    print("=== CatBoost Best Params & Val ROC AUC ===")
+    print(best_params)
+    print(f"Validation ROC AUC: {best_score:.3f}\n")
 
-    y_pred = grid.predict(X_test)
-    y_proba = grid.predict_proba(X_test)[:, 1]
+    y_pred = best_model.predict(X_test_p)
+    y_proba = best_model.predict_proba(X_test_p)[:, 1]
     print("=== CatBoost Test Performance ===")
     print(classification_report(y_test, y_pred))
     test_auc = roc_auc_score(y_test, y_proba)
@@ -162,8 +180,8 @@ def build_and_train_pipeline(export_csv: bool = True, csv_path: str = "model_per
 
     if export_csv:
         base_metrics = {
-            'Metric': ['CV ROC AUC', 'Test ROC AUC', 'Mean Abs Error', 'PR AUC'],
-            'Value': [grid.best_score_, test_auc, mae, pr_auc],
+            'Metric': ['Val ROC AUC', 'Test ROC AUC', 'Mean Abs Error', 'PR AUC'],
+            'Value': [best_score, test_auc, mae, pr_auc],
         }
 
         lc_metrics = []
@@ -181,7 +199,18 @@ def build_and_train_pipeline(export_csv: bool = True, csv_path: str = "model_per
         perf_df.to_csv(csv_path)
         print(f"Model performance and learning curve saved to {csv_path}")
 
-    return grid.best_estimator_, grid.best_params_
+    # Fit final pipeline on train+val for export
+    final_pipe = Pipeline([
+        ('pre', preprocessor),
+        ('clf', CatBoostClassifier(random_state=42, verbose=0, **best_params))
+    ])
+    final_pipe.fit(
+        pd.concat([X_train, X_val]),
+        pd.concat([y_train, y_val]),
+        clf__cat_features=cat_indices,
+    )
+
+    return final_pipe, best_params
 
 
 def main():
