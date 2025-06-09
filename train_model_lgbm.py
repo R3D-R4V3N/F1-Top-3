@@ -90,9 +90,20 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     test_races = unique_races.iloc[split_idx:]
     train_mask = df['race_id'].isin(train_races)
     test_mask = df['race_id'].isin(test_races)
-    X_train, X_test = X[train_mask], X[test_mask]
-    y_train, y_test = y[train_mask], y[test_mask]
-    train_groups = groups[train_mask]
+    X_train_all, X_test = X[train_mask], X[test_mask]
+    y_train_all, y_test = y[train_mask], y[test_mask]
+    train_groups_all = groups[train_mask]
+
+    # 3b. Validatie-set uit training halen voor early stopping
+    unique_train_races = train_races.drop_duplicates()
+    val_idx = int(len(unique_train_races) * 0.8)
+    final_train_races = unique_train_races.iloc[:val_idx]
+    val_races = unique_train_races.iloc[val_idx:]
+    final_train_mask = df['race_id'].isin(final_train_races)
+    val_mask = df['race_id'].isin(val_races)
+    X_train, X_val = X[final_train_mask], X[val_mask]
+    y_train, y_val = y[final_train_mask], y[val_mask]
+    train_groups = groups[final_train_mask]
 
     # 4. Preprocessing
     numeric_transformer = Pipeline([
@@ -111,7 +122,7 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     # 5. Pipeline met LightGBM
     pipe = Pipeline([
         ('pre', preprocessor),
-        ('clf', LGBMClassifier(random_state=42))
+        ('clf', LGBMClassifier(random_state=42, class_weight='balanced'))
     ])
 
     # 6. LightGBM hyperparameter grid
@@ -122,9 +133,12 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
         'clf__num_leaves': [31, 63, 127],
         'clf__max_depth': [-1, 5, 10],
         'clf__min_child_samples': [20, 40],
-        'clf__subsample': [0.8, 1.0],
-        'clf__colsample_bytree': [0.8, 1.0],
-        'clf__reg_lambda': [0.0, 0.1, 1.0]
+        'clf__feature_fraction': [0.8, 1.0],
+        'clf__bagging_fraction': [0.8, 1.0],
+        'clf__bagging_freq': [0, 5],
+        'clf__lambda_l1': [0.0, 0.1],
+        'clf__lambda_l2': [0.0, 0.1],
+        'clf__min_child_weight': [1e-3, 0.1]
     }
 
     # 7. GridSearchCV met groepsgebaseerde tijdsplits
@@ -137,7 +151,13 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
         n_jobs=-1,
         verbose=2
     )
-    grid.fit(X_train, y_train, groups=train_groups)
+    fit_params = {
+        'clf__eval_set': [(X_val, y_val)],
+        'clf__early_stopping_rounds': 50,
+        'clf__eval_metric': 'auc',
+        'clf__verbose': False,
+    }
+    grid.fit(X_train, y_train, groups=train_groups, **fit_params)
 
     # 7b. Learning curve to detect over- or underfitting
     train_sizes, train_scores, val_scores = learning_curve(
