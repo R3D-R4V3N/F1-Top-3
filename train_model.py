@@ -127,12 +127,26 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     print(miscl[['Driver.driverId','raceName','finish_position','pred','proba']].head(5))
 
     if export_csv:
-        perf_df = pd.DataFrame({
+        base_metrics = {
             'Metric': ['CV ROC AUC', 'Test ROC AUC', 'Mean Abs Error', 'PR AUC'],
             'Value': [grid.best_score_, roc_auc_score(y_test, y_proba), mae, pr_auc]
-        }).set_index('Metric')
+        }
+
+        # Breid uit met learning-curve resultaten
+        lc_metrics = []
+        lc_values = []
+        for sz, tr, val in zip(train_sizes, train_mean, val_mean):
+            lc_metrics.append(f'LC {int(sz)} Train ROC AUC')
+            lc_values.append(tr)
+            lc_metrics.append(f'LC {int(sz)} Val ROC AUC')
+            lc_values.append(val)
+
+        all_metrics = base_metrics['Metric'] + lc_metrics
+        all_values = base_metrics['Value'] + lc_values
+
+        perf_df = pd.DataFrame({'Metric': all_metrics, 'Value': all_values}).set_index('Metric')
         perf_df.to_csv(csv_path)
-        print(f"Model performance saved to {csv_path}")
+        print(f"Model performance and learning curve saved to {csv_path}")
 
     # Return de uiteindelijke pipeline
     return grid.best_estimator_
