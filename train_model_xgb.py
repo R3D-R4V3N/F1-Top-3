@@ -128,14 +128,23 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
             verbose=False,
         )
     except TypeError:
-        # For older XGBoost versions without callback API
-        clf.fit(
-            X_train_trans,
-            y_train,
-            eval_set=[(X_test_trans, y_test)],
-            early_stopping_rounds=50,
-            verbose=False,
-        )
+        try:
+            # Older XGBoost versions without callback API
+            clf.fit(
+                X_train_trans,
+                y_train,
+                eval_set=[(X_test_trans, y_test)],
+                early_stopping_rounds=50,
+                verbose=False,
+            )
+        except TypeError:
+            # Fallback for very old versions without early stopping support
+            clf.fit(
+                X_train_trans,
+                y_train,
+                eval_set=[(X_test_trans, y_test)],
+                verbose=False,
+            )
 
     # 11. Test evaluation
     y_pred  = clf.predict(X_test_trans)
