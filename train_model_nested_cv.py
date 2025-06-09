@@ -24,7 +24,7 @@ except ImportError:  # scikit-learn < 1.3
 
         def get_n_splits(self, X=None, y=None, groups=None):
             return self.n_splits
-from sklearn.model_selection import GridSearchCV, cross_val_score
+from sklearn.model_selection import GridSearchCV
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.impute import SimpleImputer
@@ -90,16 +90,16 @@ def main(export_csv=True, csv_path="model_performance.csv"):
 
     # 5. Outer CV voor evaluatie met tijdreekssplits
     outer_cv = GroupTimeSeriesSplit(n_splits=5)
-    scores = cross_val_score(
-        grid,
-        X,
-        y,
-        groups=groups,
-        scoring='roc_auc',
-        cv=outer_cv,
-        n_jobs=-1,
-        fit_params={'groups': groups},
-    )
+    scores = []
+    for train_idx, test_idx in outer_cv.split(X, y, groups):
+        X_train, X_test = X.iloc[train_idx], X.iloc[test_idx]
+        y_train, y_test = y.iloc[train_idx], y.iloc[test_idx]
+        train_groups = groups[train_idx]
+        grid.fit(X_train, y_train, groups=train_groups)
+        y_pred = grid.predict_proba(X_test)[:, 1]
+        score = roc_auc_score(y_test, y_pred)
+        scores.append(score)
+    scores = np.array(scores)
     print("Nested CV ROC AUC scores:", scores)
     print("Mean & std:", scores.mean(), scores.std())
 
