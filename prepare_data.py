@@ -101,7 +101,16 @@ def main():
         get_pitstop_data(season, rnd, use_cache=True)
 
     # Gemiddelde weersdata per sessie berekenen
-    weather_agg = df_weather.groupby('session_key')[['air_temperature','track_temperature']].mean().reset_index()
+    weather_cols = [
+        'air_temperature', 'track_temperature',
+        'humidity', 'pressure', 'rainfall',
+        'wind_speed', 'wind_direction'
+    ]
+    weather_agg = (
+        df_weather.groupby('session_key')[weather_cols]
+        .mean()
+        .reset_index()
+    )
 
     # 3. Hernoemen kolommen
     df_qual     = df_qual.rename(columns={'position':'grid_position'})
@@ -323,9 +332,19 @@ def main():
     # 14c. Interaction grid × track temperature
     df['grid_temp_int'] = df['grid_position'] * df['track_temperature']
 
+    # 14d. EWMA features voor grid_diff en Q3_diff
+    df['ewma_grid_diff'] = (
+        df.groupby('Driver.driverId')['grid_diff']
+          .transform(lambda s: s.shift().ewm(span=3, adjust=False).mean())
+    ).fillna(0)
+
+    df['ewma_Q3_diff'] = (
+        df.groupby('Driver.driverId')['Q3_diff']
+          .transform(lambda s: s.shift().ewm(span=3, adjust=False).mean())
+    ).fillna(0)
 
     # 15. Impute weather
-    for col in ['air_temperature','track_temperature']:
+    for col in ['air_temperature','track_temperature','humidity','pressure','rainfall','wind_speed','wind_direction']:
         df[col] = df[col].fillna(df[col].median())
 
     # Drop helper cols
