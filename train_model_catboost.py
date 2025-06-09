@@ -31,7 +31,7 @@ except ImportError:  # scikit-learn < 1.3
 
 from sklearn.model_selection import GridSearchCV, learning_curve
 from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.preprocessing import StandardScaler
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from catboost import CatBoostClassifier
@@ -52,6 +52,10 @@ def build_and_train_pipeline(export_csv: bool = True, csv_path: str = "model_per
     df = pd.read_csv('processed_data.csv', parse_dates=['date'])
     df = df.sort_values('date')
     df['race_id'] = df['season'] * 100 + df['round']
+    # label encode categorical features for CatBoost
+    for col in ['circuit_country', 'circuit_city']:
+        df[col] = df[col].fillna('missing')
+        df[col], _ = pd.factorize(df[col])
 
     # 2. Features en target
     numeric_feats = [
@@ -73,6 +77,7 @@ def build_and_train_pipeline(export_csv: bool = True, csv_path: str = "model_per
 
     X = df[numeric_feats + categorical_feats]
     y = df['top3']
+    cat_feature_indices = list(range(len(numeric_feats), len(numeric_feats) + len(categorical_feats)))
 
     # 3. Tijdgebaseerde split op basis van unieke races
     unique_races = df['race_id'].drop_duplicates()
@@ -91,19 +96,15 @@ def build_and_train_pipeline(export_csv: bool = True, csv_path: str = "model_per
         ('imputer', SimpleImputer(strategy='median')),
         ('scaler', StandardScaler())
     ])
-    cat_pipe = Pipeline([
-        ('imputer', SimpleImputer(strategy='constant', fill_value='missing')),
-        ('onehot', OneHotEncoder(handle_unknown='ignore'))
-    ])
     preprocessor = ColumnTransformer([
         ('num', num_pipe, numeric_feats),
-        ('cat', cat_pipe, categorical_feats)
+        ('cat', 'passthrough', categorical_feats)
     ])
 
     # 5. Pipeline met CatBoost
     pipe = Pipeline([
         ('pre', preprocessor),
-        ('clf', CatBoostClassifier(random_state=42, verbose=0))
+        ('clf', CatBoostClassifier(random_state=42, verbose=0, cat_features=cat_feature_indices))
     ])
 
     # 6. Hyperparameter grid
@@ -111,7 +112,8 @@ def build_and_train_pipeline(export_csv: bool = True, csv_path: str = "model_per
         'clf__iterations': [200, 500],
         'clf__depth': [6, 8],
         'clf__learning_rate': [0.03, 0.1],
-        'clf__l2_leaf_reg': [1, 3],
+        'clf__l2_leaf_reg': [1, 3, 5, 7, 9],
+        'clf__bagging_temperature': [0.5, 1.0, 2.0]
     }
 
     # 7. GridSearchCV
@@ -124,7 +126,13 @@ def build_and_train_pipeline(export_csv: bool = True, csv_path: str = "model_per
         n_jobs=-1,
         verbose=2,
     )
-    grid.fit(X_train, y_train, groups=train_groups)
+    grid.fit(
+        X_train,
+        y_train,
+        groups=train_groups,
+        clf__eval_set=(X_test, y_test),
+        clf__early_stopping_rounds=50,
+    )
 
     # 7b. Learning curve
     train_sizes, train_scores, val_scores = learning_curve(
