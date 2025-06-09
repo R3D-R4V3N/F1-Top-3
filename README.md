@@ -68,13 +68,13 @@ F1-Forecast is a small project that predicts which drivers will finish in the to
    ```bash
    python infer.py
    ```
-   Loads `processed_data.csv` and the saved pipeline, selects the latest race and prints the three drivers with the highest predicted probability of finishing in the top 3. The script also shows a SHAP feature importance plot in the terminal.
+   Loads `processed_data.csv` and the saved pipeline, selects the latest race and prints the three drivers with the highest predicted probability of finishing in the top 3.
 
 6. **Streamlit dashboard**
    ```bash
    streamlit run streamlit_app.py
    ```
-   Provides an interactive dashboard to select a season and race, view predicted probabilities and display basic performance information. A SHAP feature importance chart is displayed alongside the permutation importance plot.
+   Provides an interactive dashboard to select a season and race, view predicted probabilities and display basic performance information.
 
 ## Updating the model for new races
 
@@ -93,9 +93,9 @@ See `f1_api_docs.md` for example queries and field descriptions.
 
 ## Requirements
 
-This project relies on common Python data‑science packages such as `pandas`, `scikit‑learn`, `joblib`, `lightgbm`, `xgboost`, `streamlit` and `shap`. Install them via pip:
+This project relies on common Python data‑science packages such as `pandas`, `scikit‑learn`, `joblib`, `lightgbm`, `xgboost` and `streamlit`. Install them via pip:
 ```bash
-pip install pandas scikit-learn joblib lightgbm xgboost streamlit shap
+pip install pandas scikit-learn joblib lightgbm xgboost streamlit
 ```
 
 ## Reproducing the full pipeline

@@ -11,7 +11,6 @@ from sklearn.metrics import (
 )
 from sklearn.inspection import permutation_importance
 import matplotlib.pyplot as plt
-import shap
 import altair as alt
 
 st.title("F1 Top-3 Finish Predictie Dashboard")
@@ -132,20 +131,6 @@ ax3.barh(imp_df["feature"], imp_df["importance"])
 ax3.set_xlabel("Permutation Importance")
 ax3.invert_yaxis()
 st.pyplot(fig3)
-
-# --- SHAP feature importance ---
-st.subheader("SHAP Feature Importance")
-try:
-    X_trans = pipeline.named_steps['pre'].transform(X_test)
-    explainer = shap.TreeExplainer(pipeline.named_steps['clf'])
-    shap_values = explainer.shap_values(X_trans)
-    if isinstance(shap_values, list):
-        shap_values = shap_values[1]
-    feature_names = pipeline.named_steps['pre'].get_feature_names_out()
-    shap.summary_plot(shap_values, features=X_trans, feature_names=feature_names, show=False)
-    st.pyplot(bbox_inches='tight')
-except Exception as e:
-    st.warning(f"Could not plot SHAP values: {e}")
 
 # --- Scatter plot of overtakes for selected race ---
 if "overtakes_count" in df_test.columns:
