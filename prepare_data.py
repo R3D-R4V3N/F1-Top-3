@@ -151,7 +151,19 @@ def main():
         on=['season', 'round', 'Driver.driverId'],
         how='left'
     )
+
+    # Use only past races for overtake features to avoid leakage
+    df = df.sort_values(['Driver.driverId', 'date'])
+    df['overtakes_count'] = (
+        df.groupby('Driver.driverId')['overtakes_count']
+          .shift()
+    )
+    df['weighted_overtakes'] = (
+        df.groupby('Driver.driverId')['weighted_overtakes']
+          .shift()
+    )
     df['overtakes_count'] = df['overtakes_count'].fillna(0)
+    df['weighted_overtakes'] = df['weighted_overtakes'].fillna(0)
 
     # 6. Doelvariabele
     df['finish_position'] = pd.to_numeric(df['finish_position'], errors='coerce')
