@@ -1,5 +1,27 @@
 import pandas as pd
-from sklearn.model_selection import TimeSeriesSplit, GridSearchCV, cross_val_score
+import numpy as np
+try:
+    from sklearn.model_selection import GroupTimeSeriesSplit
+except ImportError:  # scikit-learn < 1.3
+    class GroupTimeSeriesSplit:
+        def __init__(self, n_splits: int = 5):
+            self.n_splits = n_splits
+
+        def split(self, X, y=None, groups=None):
+            if groups is None:
+                raise ValueError("The 'groups' parameter is required")
+            unique_groups = np.unique(groups)
+            n_groups = len(unique_groups)
+            test_size = n_groups // (self.n_splits + 1)
+            for i in range(self.n_splits):
+                train_end = test_size * (i + 1)
+                test_end = test_size * (i + 2)
+                train_groups = unique_groups[:train_end]
+                test_groups = unique_groups[train_end:test_end]
+                train_idx = np.where(np.isin(groups, train_groups))[0]
+                test_idx = np.where(np.isin(groups, test_groups))[0]
+                yield train_idx, test_idx
+from sklearn.model_selection import GridSearchCV, cross_val_score
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.impute import SimpleImputer
@@ -15,6 +37,7 @@ def main(export_csv=True, csv_path="model_performance.csv"):
     # 1. Data laden en sorteren op datum
     df = pd.read_csv('processed_data.csv', parse_dates=['date'])
     df = df.sort_values('date')
+    df['race_id'] = df['season'] * 100 + df['round']
     numeric_feats = [
         'grid_position', 'Q1_sec', 'Q2_sec', 'Q3_sec',
         'month', 'weekday', 'avg_finish_pos', 'avg_grid_pos', 'avg_const_finish',
@@ -23,6 +46,7 @@ def main(export_csv=True, csv_path="model_performance.csv"):
     categorical_feats = ['circuit_country','circuit_city']
     X = df[numeric_feats + categorical_feats]
     y = df['top3']
+    groups = df['race_id'].values
 
     # 2. Preprocessing pipelines
     num_pipe = Pipeline([
@@ -50,7 +74,7 @@ def main(export_csv=True, csv_path="model_performance.csv"):
     }
 
     # 4. Inner CV voor tuning met tijdreekssplits
-    inner_cv = TimeSeriesSplit(n_splits=3)
+    inner_cv = GroupTimeSeriesSplit(n_splits=3)
     grid = GridSearchCV(
         pipe,
         param_grid,
@@ -60,14 +84,16 @@ def main(export_csv=True, csv_path="model_performance.csv"):
     )
 
     # 5. Outer CV voor evaluatie met tijdreekssplits
-    outer_cv = TimeSeriesSplit(n_splits=5)
+    outer_cv = GroupTimeSeriesSplit(n_splits=5)
     scores = cross_val_score(
         grid,
         X,
         y,
+        groups=groups,
         scoring='roc_auc',
         cv=outer_cv,
         n_jobs=-1,
+        fit_params={'groups': groups},
     )
     print("Nested CV ROC AUC scores:", scores)
     print("Mean & std:", scores.mean(), scores.std())
