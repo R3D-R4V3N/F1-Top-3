@@ -34,6 +34,7 @@ from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     classification_report,
@@ -99,15 +100,19 @@ def build_and_train_pipeline(export_csv: bool = True, csv_path: str = "model_per
         ('cat', cat_pipe, categorical_feats)
     ])
 
-    # 5. Pipeline met LogisticRegression
+    # 5. Pipeline met optie voor interacties via PolynomialFeatures
     pipe = Pipeline([
         ('pre', preprocessor),
-        ('clf', LogisticRegression(max_iter=1000, solver='lbfgs'))
+        ('poly', 'passthrough'),
+        ('clf', LogisticRegression(max_iter=1000, class_weight='balanced'))
     ])
 
     # 6. Hyperparameter grid
     param_grid = {
+        'poly': ['passthrough', PolynomialFeatures(degree=2, include_bias=False)],
         'clf__C': [0.1, 1.0, 10.0],
+        'clf__penalty': ['l1', 'l2'],
+        'clf__solver': ['liblinear', 'saga'],
     }
 
     # 7. GridSearchCV met GroupTimeSeriesSplit
