@@ -18,7 +18,9 @@ def main(export_csv=True, csv_path="model_performance.csv"):
     numeric_feats = [
         'grid_position', 'Q1_sec', 'Q2_sec', 'Q3_sec',
         'month', 'weekday', 'avg_finish_pos', 'avg_grid_pos', 'avg_const_finish',
-        'air_temperature', 'track_temperature'
+        'air_temperature', 'track_temperature',
+        'driver_points_prev', 'driver_rank_prev',
+        'constructor_points_prev', 'constructor_rank_prev'
     ]
     categorical_feats = ['circuit_country','circuit_city']
     X = df[numeric_feats + categorical_feats]
