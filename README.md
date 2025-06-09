@@ -58,7 +58,7 @@ F1-Forecast is a small project that predicts which drivers will finish in the to
    `circuit_country`, `circuit_city`.
    - Numerical features are median‑imputed and scaled; categorical features are one‑hot encoded.
    - A `RandomForestClassifier` is tuned with a small parameter grid.
-   - Cross‑validation uses `TimeSeriesSplit` so each fold only sees earlier races.
+   - Cross‑validation uses `GroupTimeSeriesSplit` so each fold only sees earlier races and keeps entire events together.
    - Metrics such as ROC‑AUC, confusion matrix, precision/recall and mean absolute error are printed.
    - Key metrics and the learning curve results are written to `model_performance.csv` for the Streamlit dashboard.
    - A learning curve is calculated with `sklearn.model_selection.learning_curve` to check for over‑ or underfitting.
