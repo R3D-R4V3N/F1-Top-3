@@ -118,6 +118,8 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
 
     # 6. Hyperparameter grid voor XGBoost
     # Ruimer grid met regularisatie om overfitting tegen te gaan
+    pos_weight = y_train.value_counts()[0] / y_train.value_counts()[1]
+
     param_grid = {
         'clf__n_estimators': [200, 400],
         'clf__max_depth': [3, 6, 10],
@@ -126,7 +128,8 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
         'clf__colsample_bytree': [0.8, 1.0],
         'clf__gamma': [0, 0.1, 0.2],
         'clf__min_child_weight': [1, 5, 10],
-        'clf__reg_lambda': [1.0, 1.5]
+        'clf__reg_lambda': [1.0, 1.5],
+        'clf__scale_pos_weight': [1, pos_weight]
     }
 
     # 7. GridSearchCV met groepsgebaseerde tijdsplits

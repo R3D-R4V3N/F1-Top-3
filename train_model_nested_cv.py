@@ -83,7 +83,8 @@ def main(export_csv=True, csv_path="model_performance.csv"):
     param_grid = {
         'clf__n_estimators': [100, 200],
         'clf__max_depth': [None, 5],
-        'clf__min_samples_split': [2, 5]
+        'clf__min_samples_split': [2, 5],
+        'clf__class_weight': [None, 'balanced']
     }
 
     # 4. Inner CV voor tuning met tijdreekssplits

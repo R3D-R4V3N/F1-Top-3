@@ -107,11 +107,16 @@ def build_and_train_pipeline(export_csv: bool = True, csv_path: str = "model_per
     ])
 
     # 6. Hyperparameter grid
+    # class imbalance handling
+    pos_weight = y_train.value_counts()[0] / y_train.value_counts()[1]
+
     param_grid = {
         'clf__iterations': [200, 500],
-        'clf__depth': [6, 8],
+        'clf__depth': [4, 6, 8],
         'clf__learning_rate': [0.03, 0.1],
         'clf__l2_leaf_reg': [1, 3],
+        'clf__subsample': [0.8, 1.0],
+        'clf__class_weights': [[1.0, pos_weight]],
     }
 
     # 7. GridSearchCV
