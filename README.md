@@ -47,16 +47,19 @@ F1-Forecast is a small project that predicts which drivers will finish in the to
 
 3. **Train model**
    ```bash
-   python train_model.py
+   python train_model.py --learning-curve  # optional flag
    ```
    - Selects the following feature columns:
     `grid_position`, `Q1_sec`, `Q2_sec`, `Q3_sec`, `month`, `weekday`, `avg_finish_pos`, `avg_grid_pos`, `avg_const_finish`, `air_temperature`, `track_temperature`, `grid_diff`, `Q3_diff`, `grid_temp_int`, `overtakes_count`, `circuit_country`, `circuit_city`.
    - Numerical features are median‑imputed and scaled; categorical features are one‑hot encoded.
    - A `RandomForestClassifier` is tuned with a small parameter grid.
    - Metrics such as ROC‑AUC, precision/recall and mean absolute error are printed.
+   - With `--learning-curve`, additional training/validation ROC‑AUC scores are calculated for
+     25%, 50%, 75% and 100% of the training set using `sklearn.model_selection.learning_curve`.
+     These results are appended to `model_performance.csv`.
    - Key metrics are written to `model_performance.csv` for the Streamlit dashboard.
 
-   You can experiment with other algorithms via `train_model_lgbm.py`, `train_model_xgb.py` or `train_model_nested_cv.py`. These scripts log their metrics to the same `model_performance.csv` file so the dashboard always shows the most recent training results.
+   You can experiment with other algorithms via `train_model_lgbm.py`, `train_model_xgb.py` or `train_model_nested_cv.py`. These scripts accept the same `--learning-curve` flag and log their metrics to the same `model_performance.csv` file so the dashboard always shows the most recent training results.
 
 4. **Export trained pipeline**
    ```bash

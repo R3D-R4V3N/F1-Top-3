@@ -1,7 +1,7 @@
 # train_model.py
 
 import pandas as pd
-from sklearn.model_selection import TimeSeriesSplit, GridSearchCV
+from sklearn.model_selection import TimeSeriesSplit, GridSearchCV, learning_curve
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.impute import SimpleImputer
@@ -16,7 +16,7 @@ from sklearn.metrics import (
     mean_absolute_error,
 )
 
-def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
+def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv", learning_curve=False):
     """Bouwt de pipeline, traint hem en retourneert het beste model.
 
     Parameters
@@ -25,6 +25,8 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
         Of de evaluatiemetrics naar ``csv_path`` weggeschreven moeten worden.
     csv_path : str, optional
         Pad waar het CSV-bestand met prestaties wordt opgeslagen.
+    learning_curve : bool, optional
+        Bereken ook learning curve ROC-AUC met verschillende trainset-groottes.
     """
 
     # 1. Laad de verwerkte data en sorteer chronologisch
@@ -119,13 +121,33 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
             'Value': [grid.best_score_, roc_auc_score(y_test, y_proba), mae, pr_auc]
         }).set_index('Metric')
         perf_df.to_csv(csv_path)
+
+        if learning_curve:
+            train_sizes = [0.25, 0.5, 0.75, 1.0]
+            lc_sizes, lc_train, lc_val = learning_curve(
+                grid.best_estimator_, X_train, y_train,
+                cv=cv, scoring='roc_auc', train_sizes=train_sizes, n_jobs=-1
+            )
+            with open(csv_path, "a") as f:
+                for size, t, v in zip(lc_sizes, lc_train, lc_val):
+                    t_mean = t.mean()
+                    v_mean = v.mean()
+                    print(f"Train size {size}: train AUC {t_mean:.3f}, val AUC {v_mean:.3f}")
+                    f.write(f"LC {size} Train ROC AUC,{t_mean}\n")
+                    f.write(f"LC {size} Val ROC AUC,{v_mean}\n")
+
         print(f"Model performance saved to {csv_path}")
 
     # Return de uiteindelijke pipeline
     return grid.best_estimator_
 
 def main():
-    build_and_train_pipeline()
+    import argparse
+    parser = argparse.ArgumentParser(description="Train RandomForest model")
+    parser.add_argument("--learning-curve", action="store_true",
+                        help="Calculate learning curve metrics")
+    args = parser.parse_args()
+    build_and_train_pipeline(learning_curve=args.learning_curve)
 
 if __name__ == '__main__':
     main()
