@@ -67,11 +67,16 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     ])
 
     # 6. LightGBM hyperparameter grid
+    # Uitgebreider grid met regularisatie-opties
     param_grid = {
-        'clf__n_estimators': [100, 300],
-        'clf__learning_rate': [0.01, 0.1],
-        'clf__num_leaves': [31, 63],
-        'clf__max_depth': [-1, 10]
+        'clf__n_estimators': [200, 500],
+        'clf__learning_rate': [0.01, 0.05, 0.1],
+        'clf__num_leaves': [31, 63, 127],
+        'clf__max_depth': [-1, 5, 10],
+        'clf__min_child_samples': [20, 40],
+        'clf__subsample': [0.8, 1.0],
+        'clf__colsample_bytree': [0.8, 1.0],
+        'clf__reg_lambda': [0.0, 0.1, 1.0]
     }
 
     # 7. GridSearchCV

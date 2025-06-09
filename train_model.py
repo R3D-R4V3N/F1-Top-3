@@ -69,10 +69,13 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     ])
 
     # 6. Hyperparameter grid
+    # Iets uitgebreidere grid om mogelijke overfitting beter te controleren
     param_grid = {
-        'clf__n_estimators': [100, 200, 300],
-        'clf__max_depth':    [None, 5, 10],
-        'clf__min_samples_split': [2, 5]
+        'clf__n_estimators': [200, 500],
+        'clf__max_depth':    [None, 5, 10, 20],
+        'clf__min_samples_split': [2, 5, 10],
+        'clf__min_samples_leaf': [1, 2, 4],
+        'clf__max_features': ['sqrt', 'log2']
     }
 
     # 7. GridSearchCV met time-series splits
