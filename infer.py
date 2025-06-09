@@ -14,15 +14,25 @@ def inference_for_date(cutoff_date):
     df = df.sort_values('date')
 
     # 4. Recompute rolling and interaction features on this subset
-    df['avg_finish_pos'] = df.groupby('Driver.driverId')['finish_position'] \
-                             .transform(lambda x: x.shift().expanding().mean())
-    df['avg_grid_pos']   = df.groupby('Driver.driverId')['grid_position']   \
-                             .transform(lambda x: x.shift().expanding().mean())
-    df['grid_diff']      = df['avg_grid_pos'] - df['grid_position']
-    df['driver_avg_Q3']  = df.groupby('Driver.driverId')['Q3_sec']        \
-                             .transform(lambda x: x.shift().expanding().mean())
-    df['Q3_diff']        = df['driver_avg_Q3'] - df['Q3_sec']
-    df['grid_temp_int']  = df['grid_position'] * df['track_temperature']
+    df['avg_finish_pos'] = (
+        df.groupby('Driver.driverId')['finish_position']
+          .transform(lambda x: x.shift().expanding().mean())
+    )
+    df['avg_grid_pos'] = (
+        df.groupby('Driver.driverId')['grid_position']
+          .transform(lambda x: x.shift().expanding().mean())
+    )
+    df['avg_const_finish'] = (
+        df.groupby('constructorId')['finish_position']
+          .transform(lambda x: x.shift().expanding().mean())
+    )
+    df['grid_diff'] = df['avg_grid_pos'] - df['grid_position']
+    df['driver_avg_Q3'] = (
+        df.groupby('Driver.driverId')['Q3_sec']
+          .transform(lambda x: x.shift().expanding().mean())
+    )
+    df['Q3_diff'] = df['driver_avg_Q3'] - df['Q3_sec']
+    df['grid_temp_int'] = df['grid_position'] * df['track_temperature']
 
     # 5. Select only the rows of the cutoff_date for testing
     df_test = df[df['date'] == cutoff_date].copy()
@@ -57,4 +67,4 @@ def inference_for_date(cutoff_date):
 
 if __name__ == '__main__':
     # Replace with desired race date for prediction/backtest
-    inference_for_date(pd.Timestamp('2025-06-01'))
+    inference_for_date(pd.Timestamp("2025-06-01"))
