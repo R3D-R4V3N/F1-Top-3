@@ -92,9 +92,21 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     test_races = unique_races.iloc[split_idx:]
     train_mask = df['race_id'].isin(train_races)
     test_mask = df['race_id'].isin(test_races)
-    X_train, X_test = X[train_mask], X[test_mask]
-    y_train, y_test = y[train_mask], y[test_mask]
-    train_groups = groups[train_mask]
+    y_test = y[test_mask]
+    X_test = X[test_mask]
+
+    # Extra splits voor vroegtijdig stoppen: gebruik 80% van de training als
+    # echte trainingset en 20% als validatieset
+    train_races_split_idx = int(len(train_races) * 0.8)
+    es_train_races = train_races.iloc[:train_races_split_idx]
+    val_races = train_races.iloc[train_races_split_idx:]
+
+    es_train_mask = df['race_id'].isin(es_train_races)
+    val_mask = df['race_id'].isin(val_races)
+
+    X_train, y_train = X[es_train_mask], y[es_train_mask]
+    train_groups = groups[es_train_mask]
+    X_val, y_val = X[val_mask], y[val_mask]
 
     # 4. Preprocessing pipelines
     numeric_transformer = Pipeline([
@@ -126,7 +138,9 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
         'clf__colsample_bytree': [0.8, 1.0],
         'clf__gamma': [0, 0.1, 0.2],
         'clf__min_child_weight': [1, 5, 10],
-        'clf__reg_lambda': [1.0, 1.5]
+        'clf__reg_lambda': [1.0, 1.5],
+        'clf__reg_alpha': [0, 0.1, 0.5],
+        'clf__scale_pos_weight': [1, 3, 5]
     }
 
     # 7. GridSearchCV met groepsgebaseerde tijdsplits
@@ -139,7 +153,12 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
         n_jobs=-1,
         verbose=2
     )
-    grid.fit(X_train, y_train, groups=train_groups)
+    fit_params = {
+        'clf__eval_set': [(X_val, y_val)],
+        'clf__early_stopping_rounds': 20,
+        'clf__verbose': False,
+    }
+    grid.fit(X_train, y_train, groups=train_groups, **fit_params)
 
     # 7b. Learning curve to detect over- or underfitting
     train_sizes, train_scores, val_scores = learning_curve(
@@ -159,7 +178,11 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     # 8. Beste parameters & CV-score
     print("=== XGBoost Best Params & CV ROC AUC ===")
     print(grid.best_params_)
-    print(f"Best CV ROC AUC: {grid.best_score_:.3f}\n")
+    print(f"Best CV ROC AUC: {grid.best_score_:.3f}")
+    eval_results = grid.best_estimator_.named_steps['clf'].evals_result()
+    val_log = eval_results['validation_0']['logloss']
+    best_iter = int(np.argmin(val_log))
+    print(f"Best boosting rounds: {best_iter}\n")
 
     # 9. Testset evaluatie
     y_pred  = grid.predict(X_test)
