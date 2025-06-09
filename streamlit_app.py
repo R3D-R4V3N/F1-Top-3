@@ -11,23 +11,9 @@ from sklearn.metrics import (
 )
 from sklearn.inspection import permutation_importance
 import matplotlib.pyplot as plt
-import altair as alt
 
 st.title("F1 Top-3 Finish Predictie Dashboard")
 
-# Feature preparation function
-def prepare_features(df_sub):
-    df_sub = df_sub.sort_values('date')
-    df_sub['avg_finish_pos'] = df_sub.groupby('Driver.driverId')['finish_position'] \
-                             .transform(lambda x: x.shift().expanding().mean())
-    df_sub['avg_grid_pos']   = df_sub.groupby('Driver.driverId')['grid_position']   \
-                             .transform(lambda x: x.shift().expanding().mean())
-    df_sub['grid_diff']      = df_sub['avg_grid_pos'] - df_sub['grid_position']
-    df_sub['driver_avg_Q3']  = df_sub.groupby('Driver.driverId')['Q3_sec']        \
-                             .transform(lambda x: x.shift().expanding().mean())
-    df_sub['Q3_diff']        = df_sub['driver_avg_Q3'] - df_sub['Q3_sec']
-    df_sub['grid_temp_int']  = df_sub['grid_position'] * df_sub['track_temperature']
-    return df_sub
 
 # Load data and pipeline with caching
 def load_data():
@@ -50,27 +36,16 @@ selected_race = st.sidebar.selectbox('Selecteer race', races)
 selected_date = df[(df['season']==selected_season) & (df['raceName']==selected_race)]['date'].max()
 
 # Split data for time-series evaluation
-df_train = df[df['date'] < selected_date]
 df_test = df[df['date'] == selected_date]
 
-# Prepare features on training set
-df_train = prepare_features(df_train)
 feature_cols = [
     'grid_position', 'Q1_sec', 'Q2_sec', 'Q3_sec',
     'month', 'weekday', 'avg_finish_pos', 'avg_grid_pos', 'avg_const_finish',
     'air_temperature', 'track_temperature', 'grid_diff', 'Q3_diff', 'grid_temp_int',
     'circuit_country', 'circuit_city',
-    'overtakes_count', 'weighted_overtakes'
 ]
 
-# Retrain pipeline on training data
-X_train = df_train[feature_cols]
-y_train = df_train['top3']
-pipeline.fit(X_train, y_train)
 
-# Combine train+test for feature calculation then extract test
-df_all = prepare_features(pd.concat([df_train, df_test]))
-df_test = df_all[df_all['date'] == selected_date]
 
 # Prepare test data
 X_test = df_test[feature_cols]
@@ -132,20 +107,3 @@ ax3.set_xlabel("Permutation Importance")
 ax3.invert_yaxis()
 st.pyplot(fig3)
 
-# --- Scatter plot of overtakes for selected race ---
-if "overtakes_count" in df_test.columns:
-    st.subheader("Grid Position vs Overtakes")
-    scatter_df = df_test[["grid_position", "overtakes_count", "Driver.driverId"]]
-    chart = (
-        alt.Chart(scatter_df)
-        .mark_circle(size=80)
-        .encode(
-            x="grid_position",
-            y="overtakes_count",
-            tooltip=["Driver.driverId", "grid_position", "overtakes_count"],
-        )
-        .interactive()
-    )
-    st.altair_chart(chart, use_container_width=True)
-else:
-    st.info("'overtakes_count' not available in dataset.")
