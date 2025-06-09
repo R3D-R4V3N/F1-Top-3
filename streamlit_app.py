@@ -56,10 +56,11 @@ df_test = df[df['date'] == selected_date]
 # Prepare features on training set
 df_train = prepare_features(df_train)
 feature_cols = [
-    'grid_position','Q1_sec','Q2_sec','Q3_sec',
-    'month','weekday','avg_finish_pos','avg_grid_pos','avg_const_finish',
-    'air_temperature','track_temperature','grid_diff','Q3_diff','grid_temp_int',
-    'circuit_country','circuit_city'
+    'grid_position', 'Q1_sec', 'Q2_sec', 'Q3_sec',
+    'month', 'weekday', 'avg_finish_pos', 'avg_grid_pos', 'avg_const_finish',
+    'air_temperature', 'track_temperature', 'grid_diff', 'Q3_diff', 'grid_temp_int',
+    'circuit_country', 'circuit_city',
+    'overtakes_count', 'weighted_overtakes'
 ]
 
 # Retrain pipeline on training data

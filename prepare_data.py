@@ -3,24 +3,65 @@
 import pandas as pd
 from fetch_f1_data import get_lap_data, get_pitstop_data
 
-
 def compute_overtakes(valid_laps_df: pd.DataFrame) -> pd.DataFrame:
-    """Return overtakes_count per driver from valid (non-pit) laps."""
+    """
+    Gewogen overtakes-per-driver voor één race:
+      - netto plaatswinsten (prev_pos - pos), geclipt op ≥0
+      - gewicht = mediane_lap_tijd / lap_tijd_sec
+      - weighted_gain = pos_gain * gewicht
+    Retourneert per driver:
+      - overtakes_count (onge­wogen)
+      - weighted_overtakes
+      - overtakes_per_lap
+      - weighted_overtakes_per_lap
+    """
     if valid_laps_df.empty:
-        return pd.DataFrame(columns=["driverId", "overtakes_count"])
+        return pd.DataFrame(columns=[
+            "driverId",
+            "overtakes_count",
+            "weighted_overtakes",
+            "overtakes_per_lap",
+            "weighted_overtakes_per_lap"
+        ])
 
-    valid_laps_df = valid_laps_df.sort_values(["driverId", "lap"])
-    valid_laps_df["prev_pos"] = (
-        valid_laps_df.groupby("driverId")["position"].shift(1)
-    )
-    valid_laps_df["overtake_flag"] = (
-        valid_laps_df["prev_pos"] == valid_laps_df["position"] + 1
-    ).astype(int)
-    overtake_counts = (
-        valid_laps_df.groupby("driverId")["overtake_flag"].sum().reset_index()
-    )
-    return overtake_counts.rename(columns={"overtake_flag": "overtakes_count"})
+    df = valid_laps_df.copy()
 
+    # 1) Lap-tijd naar seconden
+    def to_sec(t):
+        m, s = t.split(':')
+        return int(m) * 60 + float(s)
+    df['lap_time_sec'] = df['time'].apply(to_sec)
+
+    # 2) Mediane lap-tijd bepalen
+    med = df['lap_time_sec'].median()
+
+    # 3) Netto plaatswinst per lap
+    df = df.sort_values(['driverId', 'lap'])
+    df['prev_pos'] = df.groupby('driverId')['position'].shift(1)
+    df['pos_gain'] = (df['prev_pos'] - df['position']).clip(lower=0)
+
+    # 4) Gewicht per lap
+    df['weight'] = med / df['lap_time_sec']
+    df['weighted_gain'] = df['pos_gain'] * df['weight']
+
+    # 5) Aggregatie per driver
+    agg = df.groupby('driverId').agg(
+        overtakes_count       = ('pos_gain', 'sum'),
+        weighted_overtakes    = ('weighted_gain', 'sum'),
+        laps_count            = ('lap', 'count')
+    ).reset_index()
+
+    # 6) Normalisatie per lap
+    agg['overtakes_per_lap']          = agg['overtakes_count'] / agg['laps_count']
+    agg['weighted_overtakes_per_lap'] = agg['weighted_overtakes'] / agg['laps_count']
+
+    return agg[[
+        'driverId',
+        'overtakes_count',
+        'weighted_overtakes',
+        'overtakes_per_lap',
+        'weighted_overtakes_per_lap'
+    ]]
 
 def main():
     # 1. Bestandspaden
