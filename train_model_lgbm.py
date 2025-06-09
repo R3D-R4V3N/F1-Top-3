@@ -31,14 +31,12 @@ from sklearn.model_selection import (
     learning_curve,
 )
 from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.preprocessing import StandardScaler
 from sklearn.impute import SimpleImputer
-from sklearn.pipeline import Pipeline
 from lightgbm import LGBMClassifier
 from sklearn.metrics import (
     classification_report,
     roc_auc_score,
-    make_scorer,
     confusion_matrix,
     precision_recall_curve,
     auc,
@@ -61,6 +59,10 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     df = pd.read_csv('processed_data.csv', parse_dates=['date'])
     df = df.sort_values('date')
     df['race_id'] = df['season'] * 100 + df['round']
+
+    # Map categoricals to integer codes for LightGBM
+    for col in ['circuit_country', 'circuit_city']:
+        df[col] = pd.Categorical(df[col]).codes
 
     # 2. Features & target
     numeric_feats = [
@@ -90,58 +92,83 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     test_races = unique_races.iloc[split_idx:]
     train_mask = df['race_id'].isin(train_races)
     test_mask = df['race_id'].isin(test_races)
-    X_train, X_test = X[train_mask], X[test_mask]
-    y_train, y_test = y[train_mask], y[test_mask]
-    train_groups = groups[train_mask]
+
+    # Extra split van trainingsdata voor early stopping
+    val_split_idx = int(len(train_races) * 0.8)
+    inner_train_races = train_races.iloc[:val_split_idx]
+    val_races = train_races.iloc[val_split_idx:]
+
+    inner_train_mask = df['race_id'].isin(inner_train_races)
+    val_mask = df['race_id'].isin(val_races)
+
+    X_train, X_val, X_test = X[inner_train_mask], X[val_mask], X[test_mask]
+    y_train, y_val, y_test = y[inner_train_mask], y[val_mask], y[test_mask]
+    train_groups = groups[inner_train_mask]
 
     # 4. Preprocessing
     numeric_transformer = Pipeline([
         ('imputer', SimpleImputer(strategy='median')),
-        ('scaler',  StandardScaler())
+        ('scaler', StandardScaler())
     ])
     categorical_transformer = Pipeline([
-        ('imputer', SimpleImputer(strategy='constant', fill_value='missing')),
-        ('onehot',  OneHotEncoder(handle_unknown='ignore'))
+        ('imputer', SimpleImputer(strategy='constant', fill_value=-1))
     ])
     preprocessor = ColumnTransformer([
         ('num', numeric_transformer, numeric_feats),
         ('cat', categorical_transformer, categorical_feats)
     ])
 
-    # 5. Pipeline met LightGBM
-    pipe = Pipeline([
-        ('pre', preprocessor),
-        ('clf', LGBMClassifier(random_state=42))
-    ])
+    # Transform data upfront for LightGBM
+    X_train_prep = preprocessor.fit_transform(X_train)
+    X_val_prep = preprocessor.transform(X_val)
+    X_test_prep = preprocessor.transform(X_test)
+
+    categorical_features = [len(numeric_feats) + i for i in range(len(categorical_feats))]
+
+    lgbm = LGBMClassifier(random_state=42)
 
     # 6. LightGBM hyperparameter grid
     # Uitgebreider grid met regularisatie-opties
     param_grid = {
-        'clf__n_estimators': [200, 500],
-        'clf__learning_rate': [0.01, 0.05, 0.1],
-        'clf__num_leaves': [31, 63, 127],
-        'clf__max_depth': [-1, 5, 10],
-        'clf__min_child_samples': [20, 40],
-        'clf__subsample': [0.8, 1.0],
-        'clf__colsample_bytree': [0.8, 1.0],
-        'clf__reg_lambda': [0.0, 0.1, 1.0]
+        'n_estimators': [200, 500],
+        'learning_rate': [0.01, 0.05, 0.1],
+        'num_leaves': [31, 63, 127],
+        'max_depth': [-1, 5, 10],
+        'min_child_samples': [20, 40],
+        'subsample': [0.8, 1.0],
+        'colsample_bytree': [0.8, 1.0],
+        'min_split_gain': [0.0, 0.1],
+        'lambda_l1': [0.0, 0.1],
+        'lambda_l2': [0.0, 0.1],
+        'scale_pos_weight': [1.0, 1.2]
     }
 
     # 7. GridSearchCV met groepsgebaseerde tijdsplits
     cv = GroupTimeSeriesSplit(n_splits=5)
     grid = GridSearchCV(
-        estimator=pipe,
+        estimator=lgbm,
         param_grid=param_grid,
         scoring='roc_auc',
         cv=cv,
         n_jobs=-1,
         verbose=2
     )
-    grid.fit(X_train, y_train, groups=train_groups)
+
+    grid.fit(
+        X_train_prep,
+        y_train,
+        groups=train_groups,
+        eval_set=[(X_val_prep, y_val)],
+        eval_metric='auc',
+        early_stopping_rounds=50,
+        categorical_feature=categorical_features,
+        verbose=False,
+    )
 
     # 7b. Learning curve to detect over- or underfitting
+    X_prep = preprocessor.transform(X)
     train_sizes, train_scores, val_scores = learning_curve(
-        grid.best_estimator_, X, y,
+        grid.best_estimator_, X_prep, y,
         groups=groups,
         cv=GroupTimeSeriesSplit(n_splits=5),
         scoring='roc_auc',
@@ -160,8 +187,8 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     print(f"CV ROC AUC: {grid.best_score_:.3f}\n")
 
     # 9. Testset evaluatie
-    y_pred  = grid.predict(X_test)
-    y_proba = grid.predict_proba(X_test)[:, 1]
+    y_pred  = grid.predict(X_test_prep)
+    y_proba = grid.predict_proba(X_test_prep)[:, 1]
     print("=== LightGBM Test Performance ===")
     print(classification_report(y_test, y_pred))
     test_auc = roc_auc_score(y_test, y_proba)
