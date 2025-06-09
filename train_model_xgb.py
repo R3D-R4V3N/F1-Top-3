@@ -12,6 +12,7 @@ from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
+import xgboost as xgb
 from xgboost import XGBClassifier
 from sklearn.metrics import (
     classification_report,
@@ -119,10 +120,11 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     X_train_trans = preprocessor.fit_transform(X_train)
     X_test_trans  = preprocessor.transform(X_test)
     clf.fit(
-        X_train_trans, y_train,
+        X_train_trans,
+        y_train,
         eval_set=[(X_test_trans, y_test)],
-        early_stopping_rounds=50,
-        verbose=False
+        callbacks=[xgb.callback.EarlyStopping(rounds=50)],
+        verbose=False,
     )
 
     # 11. Test evaluation
