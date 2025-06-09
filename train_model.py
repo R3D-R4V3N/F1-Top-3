@@ -111,16 +111,16 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     # 5. Full pipeline
     pipe = Pipeline([
         ('pre', preprocessor),
-        ('clf', RandomForestClassifier(random_state=42))
+        ('clf', RandomForestClassifier(random_state=42, class_weight="balanced"))
     ])
 
     # 6. Hyperparameter grid
     # Iets uitgebreidere grid om mogelijke overfitting beter te controleren
     param_grid = {
         'clf__n_estimators': [200, 500],
-        'clf__max_depth':    [None, 5, 10, 20],
+        'clf__max_depth':    [5, 10, 15],
         'clf__min_samples_split': [2, 5, 10],
-        'clf__min_samples_leaf': [1, 2, 4],
+        'clf__min_samples_leaf': [3, 5, 7],
         'clf__max_features': ['sqrt', 'log2']
     }
 
