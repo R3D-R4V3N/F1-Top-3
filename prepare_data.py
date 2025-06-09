@@ -331,6 +331,22 @@ def main():
     # Drop helper cols
     df.drop(columns=['date_only','session_key'], inplace=True)
 
+    # Na:
+    df['overtakes_per_lap']         = df['overtakes_per_lap'].fillna(0)
+    df['weighted_overtakes_per_lap'] = df['weighted_overtakes_per_lap'].fillna(0)
+
+    # Voeg toe: EWMA over de vorige 3 races (span=3) per driver
+    df = df.sort_values(['Driver.driverId', 'date'])
+    df['ewma_overtakes_per_lap'] = (
+        df.groupby('Driver.driverId')['overtakes_per_lap']
+        .transform(lambda s: s.shift().ewm(span=3, adjust=False).mean())
+    ).fillna(0)
+
+    df['ewma_weighted_overtakes_per_lap'] = (
+        df.groupby('Driver.driverId')['weighted_overtakes_per_lap']
+        .transform(lambda s: s.shift().ewm(span=3, adjust=False).mean())
+    ).fillna(0)
+
     # 16. Wegschrijven
     df.to_csv('processed_data.csv', index=False)
     print(f"processed_data.csv saved — {len(df)} rows, {df['top3'].sum()} top3 labels")

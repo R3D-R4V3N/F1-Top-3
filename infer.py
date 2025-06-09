@@ -63,7 +63,14 @@ def inference_for_date(cutoff_date):
         'air_temperature', 'track_temperature', 'grid_diff', 'Q3_diff', 'grid_temp_int',
         'driver_points_prev', 'driver_rank_prev',
         'constructor_points_prev', 'constructor_rank_prev',
-        'circuit_country', 'circuit_city'
+        'circuit_country', 'circuit_city',
+        # Overtakes-features
+        'overtakes_count',             # absolute aantal inhaalacties vorige races
+        'weighted_overtakes',          # gewogen aantal inhaalacties
+        'overtakes_per_lap',           # genormaliseerd per lap
+        'weighted_overtakes_per_lap',   # gewogen én genormaliseerd
+        'ewma_overtakes_per_lap',
+        'ewma_weighted_overtakes_per_lap'
     ]
     X_test = df_test[feature_cols]
 
