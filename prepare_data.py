@@ -247,9 +247,18 @@ def main():
     df['weekday'] = df['date'].dt.weekday
 
     # 9. Impute kwalificatietijden per circuit
-    for sec in ['Q1_sec','Q2_sec','Q3_sec']:
-        med = df.groupby('Circuit.circuitId')[sec].transform('median')
-        df[sec] = df[sec].fillna(med).fillna(df[sec].median())
+    # Sorteer op datum zodat we circuit-medians alleen uit voorgaande races
+    # berekenen om datalek te vermijden. Per circuit wordt een lopende mediaan
+    # bijgehouden op basis van eerdere waarden. De huidige race telt dus niet
+    # mee in die mediaan.
+    df = df.sort_values('date')
+    for sec in ['Q1_sec', 'Q2_sec', 'Q3_sec']:
+        running_med = (
+            df.groupby('Circuit.circuitId')[sec]
+              .transform(lambda s: s.expanding().median().shift())
+        )
+        df[sec] = df[sec].fillna(running_med)
+        df[sec] = df[sec].fillna(df[sec].median())
 
     # 10. Circuit-features
     df = df.merge(
