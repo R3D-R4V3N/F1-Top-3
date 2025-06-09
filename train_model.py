@@ -10,11 +10,10 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import (
     classification_report,
     roc_auc_score,
-    make_scorer,
     confusion_matrix,
     precision_recall_curve,
     auc,
-    mean_absolute_error
+    mean_absolute_error,
 )
 
 def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
@@ -80,7 +79,7 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     cv = TimeSeriesSplit(n_splits=5)
     grid = GridSearchCV(
         pipe, param_grid,
-        scoring=make_scorer(roc_auc_score),
+        scoring='roc_auc',
         cv=cv, n_jobs=-1, verbose=1
     )
     grid.fit(X_train, y_train)
