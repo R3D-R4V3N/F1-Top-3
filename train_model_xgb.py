@@ -120,13 +120,14 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     # Ruimer grid met regularisatie om overfitting tegen te gaan
     param_grid = {
         'clf__n_estimators': [200, 400],
-        'clf__max_depth': [3, 6, 10],
+        'clf__max_depth': [3, 5, 7],
         'clf__learning_rate': [0.01, 0.05, 0.1],
-        'clf__subsample': [0.8, 1.0],
-        'clf__colsample_bytree': [0.8, 1.0],
-        'clf__gamma': [0, 0.1, 0.2],
+        'clf__subsample': [0.6, 0.8, 1.0],
+        'clf__colsample_bytree': [0.6, 0.8, 1.0],
+        'clf__gamma': [0, 0.1, 0.2, 0.3],
         'clf__min_child_weight': [1, 5, 10],
-        'clf__reg_lambda': [1.0, 1.5]
+        'clf__reg_lambda': [1.0, 1.5],
+        'clf__reg_alpha': [0.0, 0.1, 1.0]
     }
 
     # 7. GridSearchCV met groepsgebaseerde tijdsplits
@@ -161,9 +162,40 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     print(grid.best_params_)
     print(f"Best CV ROC AUC: {grid.best_score_:.3f}\n")
 
+    # 8b. Train het beste model opnieuw met early stopping
+    val_split = int(len(train_races) * 0.9)
+    es_train_races = train_races.iloc[:val_split]
+    es_val_races = train_races.iloc[val_split:]
+
+    es_train_mask = df['race_id'].isin(es_train_races)
+    es_val_mask = df['race_id'].isin(es_val_races)
+
+    X_train_es, y_train_es = X[es_train_mask], y[es_train_mask]
+    X_val_es, y_val_es = X[es_val_mask], y[es_val_mask]
+
+    preprocessor.fit(X_train_es)
+    X_train_es_t = preprocessor.transform(X_train_es)
+    X_val_es_t = preprocessor.transform(X_val_es)
+    X_test_t = preprocessor.transform(X_test)
+
+    best_params = {k.split('__')[1]: v for k, v in grid.best_params_.items()}
+    best_clf = XGBClassifier(
+        use_label_encoder=False,
+        eval_metric='logloss',
+        random_state=42,
+        **best_params
+    )
+    best_clf.fit(
+        X_train_es_t,
+        y_train_es,
+        eval_set=[(X_val_es_t, y_val_es)],
+        early_stopping_rounds=50,
+        verbose=False,
+    )
+
     # 9. Testset evaluatie
-    y_pred  = grid.predict(X_test)
-    y_proba = grid.predict_proba(X_test)[:, 1]
+    y_pred  = best_clf.predict(X_test_t)
+    y_proba = best_clf.predict_proba(X_test_t)[:, 1]
     print("=== XGBoost Test Performance ===")
     print(classification_report(y_test, y_pred))
     test_auc = roc_auc_score(y_test, y_proba)
@@ -197,7 +229,7 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
         perf_df.to_csv(csv_path)
         print(f"Model performance and learning curve saved to {csv_path}")
 
-    return grid.best_estimator_, grid.best_params_
+    return best_clf, grid.best_params_
 
 def main():
     build_and_train_pipeline()
