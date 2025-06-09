@@ -24,7 +24,8 @@ from sklearn.metrics import (
 
 
 def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
-    """Train een XGBoost-model en retourneer het beste model.
+    """Train een XGBoost-model en retourneer het beste model samen met de
+    optimale hyperparameters.
 
     Parameters
     ----------
@@ -154,7 +155,7 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
         perf_df.to_csv(csv_path)
         print(f"Model performance and learning curve saved to {csv_path}")
 
-    return grid.best_estimator_
+    return grid.best_estimator_, grid.best_params_
 
 def main():
     build_and_train_pipeline()
