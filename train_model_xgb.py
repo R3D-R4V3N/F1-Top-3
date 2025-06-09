@@ -82,7 +82,7 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     grid = GridSearchCV(
         estimator=pipe,
         param_grid=param_grid,
-        scoring=make_scorer(roc_auc_score),
+        scoring='roc_auc',
         cv=cv,
         n_jobs=-1,
         verbose=2

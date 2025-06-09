@@ -6,7 +6,6 @@ from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import (
-    make_scorer,
     roc_auc_score,
 )
 
@@ -52,15 +51,24 @@ def main(export_csv=True, csv_path="model_performance.csv"):
 
     # 4. Inner CV for tuning
     inner_cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=1)
-    grid = GridSearchCV(pipe, param_grid,
-                        scoring=make_scorer(roc_auc_score),
-                        cv=inner_cv, n_jobs=-1)
+    grid = GridSearchCV(
+        pipe,
+        param_grid,
+        scoring='roc_auc',
+        cv=inner_cv,
+        n_jobs=-1,
+    )
 
     # 5. Outer CV for evaluation
     outer_cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=1)
-    scores = cross_val_score(grid, X, y,
-                             scoring=make_scorer(roc_auc_score),
-                             cv=outer_cv, n_jobs=-1)
+    scores = cross_val_score(
+        grid,
+        X,
+        y,
+        scoring='roc_auc',
+        cv=outer_cv,
+        n_jobs=-1,
+    )
     print("Nested CV ROC AUC scores:", scores)
     print("Mean & std:", scores.mean(), scores.std())
 
