@@ -35,6 +35,7 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from xgboost import XGBClassifier
+import inspect
 from sklearn.metrics import (
     classification_report,
     roc_auc_score,
@@ -44,6 +45,39 @@ from sklearn.metrics import (
     auc,
     mean_absolute_error,
 )
+
+
+class EvalSetPipeline(Pipeline):
+    """Pipeline that transforms validation data before XGB training."""
+
+    def _transform_eval(self, X):
+        Xt = X
+        for _, _, step in self._iter(with_final=False, filter_passthrough=False):
+            if step is None or step == "passthrough":
+                continue
+            Xt = step.transform(Xt)
+        return Xt
+
+    def fit(self, X, y=None, **params):
+        eval_set = params.pop("clf__eval_set", None)
+        routed = self._check_method_params(method="fit", props=params)
+        Xt = self._fit(X, y, routed, raw_params=params)
+
+        if self._final_estimator != "passthrough":
+            last_params = self._get_metadata_for_step(
+                step_idx=len(self) - 1,
+                step_params=routed[self.steps[-1][0]],
+                all_params=params,
+            )
+            if eval_set is not None:
+                eval_set = [
+                    (self._transform_eval(Xe), ye) for Xe, ye in eval_set
+                ]
+                last_params["fit"]["eval_set"] = eval_set
+
+            self._final_estimator.fit(Xt, y, **last_params["fit"])
+
+        return self
 
 
 def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
@@ -122,7 +156,7 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     ])
 
     # 5. Pipeline met XGBoost
-    pipe = Pipeline([
+    pipe = EvalSetPipeline([
         ('pre', preprocessor),
         ('clf', XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=42))
     ])
@@ -153,14 +187,30 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
         n_jobs=-1,
         verbose=2
     )
-    grid.fit(
-        X_train,
-        y_train,
-        groups=train_groups,
-        clf__eval_set=[(X_val, y_val)],
-        clf__early_stopping_rounds=50,
-        clf__verbose=False,
-    )
+    fit_params = {
+        "groups": train_groups,
+        "clf__eval_set": [(X_val, y_val)],
+        "clf__verbose": False,
+    }
+
+    # Determine how to enable early stopping depending on the available
+    # parameters of ``XGBClassifier.fit``.  Some older releases only accept
+    # ``early_stopping_rounds`` while newer ones switched to the ``callbacks``
+    # argument.  We inspect the function signature and code object to handle
+    # both situations gracefully.
+    fit_sig = inspect.signature(XGBClassifier.fit)
+
+    def supports(param: str) -> bool:
+        return param in fit_sig.parameters or param in XGBClassifier.fit.__code__.co_varnames
+
+    if supports("early_stopping_rounds"):
+        fit_params["clf__early_stopping_rounds"] = 50
+    elif supports("callbacks"):
+        from xgboost.callback import EarlyStopping
+
+        fit_params["clf__callbacks"] = [EarlyStopping(rounds=50, save_best=True)]
+
+    grid.fit(X_train, y_train, **fit_params)
 
     # 7b. Learning curve to detect over- or underfitting
     train_sizes, train_scores, val_scores = learning_curve(
