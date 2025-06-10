@@ -123,32 +123,36 @@ def build_and_train_pipeline(
         ('cat', categorical_transformer, categorical_feats)
     ])
 
-    # 5. Pipeline met LightGBM
-    pipe = Pipeline([
-        ('pre', preprocessor),
-        ('clf', LGBMClassifier(random_state=42))
-    ])
+    # fit preprocessing on training data and transform all splits
+    preprocessor.fit(X_train_full)
+    X_train_full_tr = preprocessor.transform(X_train_full)
+    X_test_tr = preprocessor.transform(X_test)
+    X_train_tr = preprocessor.transform(X_train)
+    X_val_tr = preprocessor.transform(X_val)
+    X_all_tr = preprocessor.transform(X)
 
-    # 6. LightGBM hyperparameter grid
-    # Uitgebreider grid met regularisatie-opties
+    # 5. LightGBM model zonder pipeline
+    clf = LGBMClassifier(random_state=42)
+
+    # 6. Hyperparameter grid
     pos_weight = y_train.value_counts()[0] / y_train.value_counts()[1]
 
     param_grid = {
-        'clf__n_estimators': [200, 500],
-        'clf__learning_rate': [0.01, 0.05, 0.1],
-        'clf__num_leaves': [31, 63, 127],
-        'clf__max_depth': [-1, 5, 10],
-        'clf__min_child_samples': [20, 40],
-        'clf__subsample': [0.8, 1.0],
-        'clf__colsample_bytree': [0.8, 1.0],
-        'clf__reg_lambda': [0.0, 0.1, 1.0],
-        'clf__scale_pos_weight': [1, pos_weight]
+        'n_estimators': [200, 500],
+        'learning_rate': [0.01, 0.05, 0.1],
+        'num_leaves': [31, 63, 127],
+        'max_depth': [-1, 5, 10],
+        'min_child_samples': [20, 40],
+        'subsample': [0.8, 1.0],
+        'colsample_bytree': [0.8, 1.0],
+        'reg_lambda': [0.0, 0.1, 1.0],
+        'scale_pos_weight': [1, pos_weight]
     }
 
     # 7. GridSearchCV met groepsgebaseerde tijdsplits
     cv = GroupTimeSeriesSplit(n_splits=5)
     grid = GridSearchCV(
-        estimator=pipe,
+        estimator=clf,
         param_grid=param_grid,
         scoring='roc_auc',
         cv=cv,
@@ -156,19 +160,21 @@ def build_and_train_pipeline(
         verbose=2
     )
     grid.fit(
-        X_train,
+        X_train_tr,
         y_train,
         groups=train_groups,
-        clf__eval_set=[(X_val, y_val)],
-        clf__callbacks=[
+        eval_set=[(X_val_tr, y_val)],
+        callbacks=[
             lgb.early_stopping(50, verbose=False),
         ],
     )
-    best_iter = grid.best_estimator_.named_steps['clf'].best_iteration_
+    best_iter = grid.best_estimator_.best_iteration_
 
     # 7b. Learning curve to detect over- or underfitting
     train_sizes, train_scores, val_scores = learning_curve(
-        grid.best_estimator_, X, y,
+        grid.best_estimator_,
+        X_all_tr,
+        y,
         groups=groups,
         cv=GroupTimeSeriesSplit(n_splits=5),
         scoring='roc_auc',
@@ -188,8 +194,8 @@ def build_and_train_pipeline(
     print(f"Best Iteration: {best_iter}\n")
 
     # 9. Testset evaluatie
-    y_pred  = grid.predict(X_test)
-    y_proba = grid.predict_proba(X_test)[:, 1]
+    y_pred  = grid.predict(X_test_tr)
+    y_proba = grid.predict_proba(X_test_tr)[:, 1]
     print("=== LightGBM Test Performance ===")
     print(classification_report(y_test, y_pred))
     test_auc = roc_auc_score(y_test, y_proba)
@@ -229,16 +235,16 @@ def build_and_train_pipeline(
         perf_df.to_csv(csv_path)
         print(f"Model performance and learning curve saved to {csv_path}")
 
-    # Calibrate the best pipeline on training data
+    # Calibrate the best model on the training data
     calibrator = CalibratedClassifierCV(
         base_estimator=grid.best_estimator_,
         method='isotonic',
         cv=GroupTimeSeriesSplit(n_splits=5),
     )
-    calibrator.fit(X_train, y_train, groups=train_groups)
+    calibrator.fit(X_train_tr, y_train, groups=train_groups)
 
     # Evaluate calibrated model on the held-out test set
-    y_proba_cal = calibrator.predict_proba(X_test)[:, 1]
+    y_proba_cal = calibrator.predict_proba(X_test_tr)[:, 1]
     test_auc_cal = roc_auc_score(y_test, y_proba_cal)
     mae_cal = mean_absolute_error(y_test, y_proba_cal)
     prec_cal, recall_cal, _ = precision_recall_curve(y_test, y_proba_cal)
