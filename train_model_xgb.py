@@ -47,8 +47,8 @@ from sklearn.metrics import (
 
 
 def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
-    """Train een XGBoost-model en retourneer het beste model samen met de
-    optimale hyperparameters.
+    """Train een XGBoost-model en retourneer het beste model, de optimale
+    hyperparameters en de best gevonden iteratie.
 
     Parameters
     ----------
@@ -92,9 +92,16 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     test_races = unique_races.iloc[split_idx:]
     train_mask = df['race_id'].isin(train_races)
     test_mask = df['race_id'].isin(test_races)
-    X_train, X_test = X[train_mask], X[test_mask]
-    y_train, y_test = y[train_mask], y[test_mask]
-    train_groups = groups[train_mask]
+    X_train_full, X_test = X[train_mask], X[test_mask]
+    y_train_full, y_test = y[train_mask], y[test_mask]
+    groups_full = groups[train_mask]
+
+    # 3b. Validation split binnen training met GroupTimeSeriesSplit
+    gts = GroupTimeSeriesSplit(n_splits=5)
+    train_idx, val_idx = list(gts.split(X_train_full, y_train_full, groups=groups_full))[-1]
+    X_train, X_val = X_train_full.iloc[train_idx], X_train_full.iloc[val_idx]
+    y_train, y_val = y_train_full.iloc[train_idx], y_train_full.iloc[val_idx]
+    train_groups = groups_full[train_idx]
 
     # 4. Preprocessing pipelines
     numeric_transformer = Pipeline([
@@ -142,7 +149,15 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
         n_jobs=-1,
         verbose=2
     )
-    grid.fit(X_train, y_train, groups=train_groups)
+    grid.fit(
+        X_train,
+        y_train,
+        groups=train_groups,
+        clf__eval_set=[(X_val, y_val)],
+        clf__early_stopping_rounds=50,
+        clf__verbose=False,
+    )
+    best_iter = grid.best_estimator_.named_steps['clf'].best_iteration
 
     # 7b. Learning curve to detect over- or underfitting
     train_sizes, train_scores, val_scores = learning_curve(
@@ -162,7 +177,8 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     # 8. Beste parameters & CV-score
     print("=== XGBoost Best Params & CV ROC AUC ===")
     print(grid.best_params_)
-    print(f"Best CV ROC AUC: {grid.best_score_:.3f}\n")
+    print(f"Best CV ROC AUC: {grid.best_score_:.3f}")
+    print(f"Best Iteration: {best_iter}\n")
 
     # 9. Testset evaluatie
     y_pred  = grid.predict(X_test)
@@ -181,8 +197,14 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
 
     if export_csv:
         base_metrics = {
-            'Metric': ['CV ROC AUC', 'Test ROC AUC', 'Mean Abs Error', 'PR AUC'],
-            'Value': [grid.best_score_, test_auc, mae, pr_auc],
+            'Metric': [
+                'CV ROC AUC',
+                'Test ROC AUC',
+                'Mean Abs Error',
+                'PR AUC',
+                'Best Iteration',
+            ],
+            'Value': [grid.best_score_, test_auc, mae, pr_auc, best_iter],
         }
 
         lc_metrics = []
@@ -200,7 +222,7 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
         perf_df.to_csv(csv_path)
         print(f"Model performance and learning curve saved to {csv_path}")
 
-    return grid.best_estimator_, grid.best_params_
+    return grid.best_estimator_, grid.best_params_, best_iter
 
 def main():
     build_and_train_pipeline()
