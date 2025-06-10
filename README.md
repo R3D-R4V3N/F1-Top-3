@@ -14,7 +14,7 @@ F1-Forecast is a small project that predicts which drivers will finish in the to
 | `train_model_nested_cv.py` | Example of nested cross‑validation for more robust evaluation. |
 | `train_model_xgb.py` | Experimental model using XGBoost. |
 | `train_model_stacking.py` | Ensemble model that stacks tuned RandomForest, LightGBM and XGBoost classifiers with a logistic regression meta learner. |
-| `export_model.py` | Calls `build_and_train_pipeline()` from the chosen training script, refits the best estimator on the entire dataset and saves the result to `f1_top3_pipeline.joblib`. Use `--algo {rf,lgbm,xgb}` to select the algorithm. |
+| `export_model.py` | Calls `build_and_train_pipeline()` from the chosen training script, refits the best estimator on the entire dataset and saves the result to `f1_top3_pipeline.joblib`. Use `--algo {rf,lgbm,xgb,catb,logreg,stack}` to select the algorithm. |
 | `infer.py` | Recomputes features with past races only and calls `inference_for_date()` to generate predictions for a chosen race date. |
 | `streamlit_app.py` | Streamlit dashboard to interactively explore predictions. |
 | `f1_api_docs.md` | Documentation snippets of the OpenF1 and Jolpica APIs. |
@@ -68,11 +68,11 @@ F1-Forecast is a small project that predicts which drivers will finish in the to
    - Key metrics and the learning curve results are written to `model_performance.csv` for the Streamlit dashboard.
    - A learning curve is calculated with `sklearn.model_selection.learning_curve` to check for over‑ or underfitting.
 
-   You can experiment with other algorithms via `train_model_lgbm.py`, `train_model_xgb.py`, `train_model_stacking.py` or `train_model_nested_cv.py`. These scripts output a confusion matrix and log their metrics—including learning curve values—to the same `model_performance.csv` file so the dashboard always shows the most recent training results.
+   You can experiment with other algorithms via `train_model_lgbm.py`, `train_model_xgb.py`, `train_model_catboost.py`, `train_model_logreg.py`, `train_model_stacking.py` or `train_model_nested_cv.py`. These scripts output a confusion matrix and log their metrics—including learning curve values—to the same `model_performance.csv` file so the dashboard always shows the most recent training results.
 
 4. **Export trained pipeline**
    ```bash
-   python export_model.py --algo lgbm  # or rf/xgb
+   python export_model.py --algo lgbm  # or rf/xgb/catb/logreg/stack
    ```
    Saves the best pipeline from the selected algorithm. `export_model.py`
    clones the tuned estimator, fits it on the entire dataset and writes the
@@ -98,7 +98,7 @@ F1-Forecast is a small project that predicts which drivers will finish in the to
 When new race data becomes available:
 1. Run `fetch_f1_data.py` again. The script fetches data for all seasons starting from 2022, so rerunning it will append the latest results and weather.
 2. Recreate `processed_data.csv` with `prepare_data.py`.
-3. Retrain the model (`train_model.py`) and export the updated pipeline with `export_model.py --algo rf|lgbm|xgb`.
+3. Retrain the model (`train_model.py`) and export the updated pipeline with `export_model.py --algo rf|lgbm|xgb|catb|logreg|stack`.
 4. Use `infer.py` (or import `inference_for_date()`) to generate predictions for the new race with features recalculated from prior events.
 
 ## Data sources
@@ -122,7 +122,7 @@ From a clean checkout:
 python fetch_f1_data.py
 python prepare_data.py
 python train_model.py
-python export_model.py --algo rf  # or lgbm/xgb
+python export_model.py --algo rf  # or lgbm/xgb/catb/logreg/stack
 python infer.py  # adjust the date inside to predict a specific race
 ```
 Optionally run the Streamlit dashboard as described above.

@@ -10,6 +10,7 @@ from train_model_lgbm import build_and_train_pipeline as build_lgbm
 from train_model_xgb import build_and_train_pipeline as build_xgb
 from train_model_catboost import build_and_train_pipeline as build_catb
 from train_model_logreg import build_and_train_pipeline as build_logreg
+from train_model_stacking import build_and_train_pipeline as build_stack
 
 def save_pipeline(algorithm: str = "rf"):
     """Train en bewaar het pipeline-model voor het gekozen algoritme."""
@@ -24,6 +25,8 @@ def save_pipeline(algorithm: str = "rf"):
         pipeline, best_params = build_catb()
     elif algorithm == "logreg":
         pipeline, best_params = build_logreg()
+    elif algorithm == "stack":
+        pipeline, best_params = build_stack()
     else:
         raise ValueError(f"Onbekend algoritme: {algorithm}")
 
@@ -44,7 +47,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Exporteer een getrainde pipeline")
     parser.add_argument(
         "--algo",
-        choices=["rf", "lgbm", "xgb", "catb", "logreg"],
+        choices=["rf", "lgbm", "xgb", "catb", "logreg", "stack"],
         default="rf",
         help="Welk algoritme moet worden getraind en opgeslagen"
     )
