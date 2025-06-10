@@ -68,6 +68,7 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
         'month', 'weekday', 'month_sin', 'month_cos', 'weekday_sin', 'weekday_cos',
         'avg_finish_pos', 'avg_grid_pos', 'avg_const_finish',
         'air_temperature', 'track_temperature',
+        'humidity', 'pressure', 'rainfall', 'wind_speed', 'wind_direction',
         'driver_points_prev', 'driver_rank_prev',
         'constructor_points_prev', 'constructor_rank_prev',
 
