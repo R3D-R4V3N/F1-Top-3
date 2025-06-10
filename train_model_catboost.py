@@ -60,6 +60,7 @@ def build_and_train_pipeline(export_csv: bool = True, csv_path: str = "model_per
         'air_temperature', 'track_temperature',
         'driver_points_prev', 'driver_rank_prev',
         'constructor_points_prev', 'constructor_rank_prev',
+        'driver_home_race', 'rank_diff',
 
         # Overtakes-features
         'overtakes_count',             # absolute aantal inhaalacties vorige races
@@ -69,7 +70,7 @@ def build_and_train_pipeline(export_csv: bool = True, csv_path: str = "model_per
         'ewma_overtakes_per_lap',
         'ewma_weighted_overtakes_per_lap'
     ]
-    categorical_feats = ['circuit_country', 'circuit_city']
+    categorical_feats = ['circuit_country', 'circuit_city', 'track_type']
 
     X = df[numeric_feats + categorical_feats]
     y = df['top3']

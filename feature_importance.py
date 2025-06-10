@@ -8,7 +8,8 @@ FEATURE_COLS = [
     'air_temperature', 'track_temperature', 'grid_diff', 'Q3_diff', 'grid_temp_int',
     'driver_points_prev', 'driver_rank_prev',
     'constructor_points_prev', 'constructor_rank_prev',
-    'circuit_country', 'circuit_city',
+    'driver_home_race', 'rank_diff',
+    'circuit_country', 'circuit_city', 'track_type',
 ]
 
 

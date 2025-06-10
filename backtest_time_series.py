@@ -15,9 +15,10 @@ df = df.sort_values('date')
 numeric_feats = [
     'grid_position','Q1_sec','Q2_sec','Q3_sec',
     'month','weekday','avg_finish_pos','avg_grid_pos','avg_const_finish',
-    'air_temperature','track_temperature','grid_diff','Q3_diff','grid_temp_int'
+    'air_temperature','track_temperature','grid_diff','Q3_diff','grid_temp_int',
+    'driver_home_race','rank_diff'
 ]
-categorical_feats = ['circuit_country','circuit_city']
+categorical_feats = ['circuit_country','circuit_city','track_type']
 feature_cols = numeric_feats + categorical_feats
 
 # 3) Preprocessing pipeline
