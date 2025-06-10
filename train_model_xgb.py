@@ -35,6 +35,7 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from xgboost import XGBClassifier
+import inspect
 from sklearn.metrics import (
     classification_report,
     roc_auc_score,
@@ -153,14 +154,23 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
         n_jobs=-1,
         verbose=2
     )
-    grid.fit(
-        X_train,
-        y_train,
-        groups=train_groups,
-        clf__eval_set=[(X_val, y_val)],
-        clf__early_stopping_rounds=50,
-        clf__verbose=False,
-    )
+    fit_params = {
+        "groups": train_groups,
+        "clf__eval_set": [(X_val, y_val)],
+        "clf__verbose": False,
+    }
+
+    # XGBoost 3.0 removed the ``early_stopping_rounds`` parameter from
+    # ``fit`` in favour of callbacks.  For older versions we keep the
+    # original argument for backwards compatibility.
+    if "early_stopping_rounds" in inspect.signature(XGBClassifier.fit).parameters:
+        fit_params["clf__early_stopping_rounds"] = 50
+    else:
+        from xgboost.callback import EarlyStopping
+
+        fit_params["clf__callbacks"] = [EarlyStopping(rounds=50, save_best=True)]
+
+    grid.fit(X_train, y_train, **fit_params)
 
     # 7b. Learning curve to detect over- or underfitting
     train_sizes, train_scores, val_scores = learning_curve(
