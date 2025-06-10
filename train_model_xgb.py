@@ -51,8 +51,8 @@ def build_and_train_pipeline(
     export_csv=True,
     csv_path="model_performance_xgb.csv",
 ):
-    """Train een XGBoost-model en retourneer het beste model samen met de
-    optimale hyperparameters.
+    """Train een XGBoost-model en retourneer het beste model, de optimale
+    hyperparameters en de best gevonden iteratie.
 
     Parameters
     ----------

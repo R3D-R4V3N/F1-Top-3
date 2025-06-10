@@ -50,7 +50,8 @@ def build_and_train_pipeline(
     export_csv: bool = True,
     csv_path: str = "model_performance_catboost.csv",
 ):
-    """Train een CatBoost-model en retourneer het beste model en de hyperparameters."""
+    """Train een XGBoost-model en retourneer het beste model, de optimale
+    hyperparameters en de best gevonden iteratie."""
 
     # 1. Data laden
     df = pd.read_csv('processed_data.csv', parse_dates=['date'])

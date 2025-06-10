@@ -52,8 +52,8 @@ def build_and_train_pipeline(
     csv_path: str = "model_performance.csv",
     calib_csv_path: str = "model_performance_calibrated.csv",
 ):
-    """Train een LightGBM-model en retourneer het beste model en de bijbehorende
-    hyperparameters.
+    """Train een LightGBM-model en retourneer het beste model, de
+    hyperparameters en de best gevonden iteratie.
 
     Parameters
     ----------
