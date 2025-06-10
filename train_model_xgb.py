@@ -23,7 +23,7 @@ from sklearn.metrics import (
 )
 
 
-def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
+def build_and_train_pipeline(export_csv=True, csv_path="xgb_model_performance.csv"):
     """Train een XGBoost-model en retourneer het beste model samen met de
     optimale hyperparameters.
 
@@ -32,7 +32,9 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     export_csv : bool, optional
         Of de evaluatiemetrics naar ``csv_path`` weggeschreven moeten worden.
     csv_path : str, optional
-        Pad waar het CSV-bestand met prestaties wordt opgeslagen.
+        Pad waar het CSV-bestand met prestaties wordt opgeslagen. Standaard
+        wordt dit ``xgb_model_performance.csv`` zodat iedere trainingsscript
+        zijn eigen resultaten bijhoudt.
     """
 
     # 1. Laad de verwerkte data en sorteer chronologisch
@@ -43,16 +45,15 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     # 2. Definieer features en target
     numeric_feats = [
         'grid_position', 'Q1_sec', 'Q2_sec', 'Q3_sec',
-        'month', 'weekday', 'avg_finish_pos', 'avg_grid_pos', 'avg_const_finish',
-        'air_temperature', 'track_temperature', 'grid_diff', 'Q3_diff', 'grid_temp_int',
-        'driver_points_prev', 'driver_rank_prev',
-        'constructor_points_prev', 'constructor_rank_prev',
+        'month', 'avg_finish_pos', 'avg_grid_pos', 'avg_const_finish',
+        'finish_rate_prev5',
+        'grid_diff', 'Q3_diff',
+        'team_qual_gap',
 
         # Overtakes-features
-        'overtakes_count',             # absolute aantal inhaalacties vorige races
-        'weighted_overtakes',          # gewogen aantal inhaalacties
-        'overtakes_per_lap',           # genormaliseerd per lap
-        'weighted_overtakes_per_lap',   # gewogen én genormaliseerd
+        'weighted_overtakes',
+        'overtakes_per_lap',
+        'weighted_overtakes_per_lap',
         'ewma_overtakes_per_lap',
         'ewma_weighted_overtakes_per_lap'
     ]
@@ -75,7 +76,7 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
 
     # 4. Preprocessing pipelines
     numeric_transformer = Pipeline([
-        ('imputer', SimpleImputer(strategy='median')),
+        ('imputer', SimpleImputer(strategy='constant', fill_value=0)),
         ('scaler', StandardScaler())
     ])
     categorical_transformer = Pipeline([

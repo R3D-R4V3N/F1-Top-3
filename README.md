@@ -39,15 +39,11 @@ F1-Forecast is a small project that predicts which drivers will finish in the to
    ```
    Creates `processed_data.csv` by merging qualifying, race results, circuit info, sessions and weather. Important steps:
    - Convert qualifying times to seconds (`Q1_sec`, `Q2_sec`, `Q3_sec`).
-   - Add date‑based features (`month`, `weekday`).
+   - Add date‑based feature (`month`).
    - Compute rolling averages: previous finish position and grid position per driver, plus average constructor finish.
-  - Merge weather via `session_key` and impute missing values.
   - Count on-track overtakes per driver using lap and pit stop data
-    (`overtakes_count`, `weighted_overtakes`, `overtakes_per_lap`, `weighted_overtakes_per_lap`). Values are shifted per driver so only previous races are used; these metrics and their EWMA versions are included as model features.
-  - Parse driver and constructor standings to derive previous-season
-    points and rank (`driver_points_prev`, `driver_rank_prev`,
-    `constructor_points_prev`, `constructor_rank_prev`).
-  - Create interaction features: `grid_diff`, `Q3_diff`, `grid_temp_int`.
+    (`weighted_overtakes`, `overtakes_per_lap`, `weighted_overtakes_per_lap`). Values are shifted per driver so only previous races are used; these metrics and their EWMA versions are included as model features.
+  - Create interaction features: `grid_diff`, `Q3_diff`.
    The final CSV contains one row per driver per race with a boolean `top3` label. `prepare_data.py` also downloads lap time and pit stop data for each race using the cached helpers (`use_cache=True`).
 
 3. **Train model**
@@ -55,20 +51,21 @@ F1-Forecast is a small project that predicts which drivers will finish in the to
    python train_model.py
    ```
    - Selects the following feature columns:
-    `grid_position`, `Q1_sec`, `Q2_sec`, `Q3_sec`, `month`, `weekday`,
-    `avg_finish_pos`, `avg_grid_pos`, `avg_const_finish`, `air_temperature`,
-    `track_temperature`, `grid_diff`, `Q3_diff`, `grid_temp_int`,
-    `driver_points_prev`, `driver_rank_prev`,
-    `constructor_points_prev`, `constructor_rank_prev`,
-   `circuit_country`, `circuit_city`.
-   - Numerical features are median‑imputed and scaled; categorical features are one‑hot encoded.
+    `grid_position`, `Q1_sec`, `Q2_sec`, `Q3_sec`, `month`,
+    `avg_finish_pos`, `avg_grid_pos`, `avg_const_finish`,
+    `grid_diff`, `Q3_diff`,
+    `finish_rate_prev5`, `team_qual_gap`,
+   `circuit_country`, `circuit_city` plus weighted overtake features.
+   - Numerical features are imputed with a running median (fallback to ``0``) and scaled; categorical features are one‑hot encoded.
    - A `RandomForestClassifier` is tuned with a small parameter grid.
    - Cross‑validation uses `GroupTimeSeriesSplit` so each fold only sees earlier races and keeps entire events together.
    - Metrics such as ROC‑AUC, confusion matrix, precision/recall and mean absolute error are printed.
-   - Key metrics and the learning curve results are written to `model_performance.csv` for the Streamlit dashboard.
+   - Key metrics and the learning curve results are written to a dedicated CSV
+     file (e.g. `rf_model_performance.csv`) so each algorithm keeps its own
+     results for the Streamlit dashboard.
    - A learning curve is calculated with `sklearn.model_selection.learning_curve` to check for over‑ or underfitting.
 
-   You can experiment with other algorithms via `train_model_lgbm.py`, `train_model_xgb.py`, `train_model_catboost.py`, `train_model_logreg.py`, `train_model_stacking.py` or `train_model_nested_cv.py`. These scripts output a confusion matrix and log their metrics—including learning curve values—to the same `model_performance.csv` file so the dashboard always shows the most recent training results.
+   You can experiment with other algorithms via `train_model_lgbm.py`, `train_model_xgb.py`, `train_model_catboost.py`, `train_model_logreg.py`, `train_model_stacking.py` or `train_model_nested_cv.py`. Each of these scripts now writes its metrics to a separate file like `lgbm_model_performance.csv` or `xgb_model_performance.csv`, keeping results isolated while still allowing the dashboard to read the latest run per algorithm.
 
 4. **Export trained pipeline**
    ```bash

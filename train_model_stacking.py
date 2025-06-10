@@ -46,7 +46,7 @@ def _extract_clf(pipeline):
 
 
 def build_and_train_pipeline(export_csv: bool = True,
-                             csv_path: str = "model_performance.csv"):
+                             csv_path: str = "stacking_model_performance.csv"):
     """Train a stacking ensemble and optionally export metrics.
 
     Parameters
@@ -54,7 +54,9 @@ def build_and_train_pipeline(export_csv: bool = True,
     export_csv : bool, optional
         Whether to write the evaluation metrics to ``csv_path``.
     csv_path : str, optional
-        Path to save the CSV file with the model's performance.
+        Path to save the CSV file with the model's performance. By default this
+        is ``stacking_model_performance.csv`` so that each model writes to its
+        own dedicated file.
     """
 
     # 1. Load and sort the processed dataset
@@ -69,21 +71,15 @@ def build_and_train_pipeline(export_csv: bool = True,
         "Q2_sec",
         "Q3_sec",
         "month",
-        "weekday",
         "avg_finish_pos",
         "avg_grid_pos",
         "avg_const_finish",
-        "air_temperature",
-        "track_temperature",
         "grid_diff",
         "Q3_diff",
-        "grid_temp_int",
-        "driver_points_prev",
-        "driver_rank_prev",
-        "constructor_points_prev",
-        "constructor_rank_prev",
+        "finish_rate_prev5",
+        'team_qual_gap',
+
         # Overtake features
-        "overtakes_count",
         "weighted_overtakes",
         "overtakes_per_lap",
         "weighted_overtakes_per_lap",
@@ -110,7 +106,7 @@ def build_and_train_pipeline(export_csv: bool = True,
     # 4. Shared preprocessing
     num_pipe = Pipeline(
         [
-            ("imputer", SimpleImputer(strategy="median")),
+            ("imputer", SimpleImputer(strategy="constant", fill_value=0)),
             ("scaler", StandardScaler()),
         ]
     )
