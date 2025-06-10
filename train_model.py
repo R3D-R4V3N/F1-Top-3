@@ -43,6 +43,8 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
         'air_temperature', 'track_temperature', 'humidity', 'pressure', 'rainfall',
         'wind_speed', 'wind_direction',
         'finish_rate_prev5',
+        'team_qual_gap',
+
         'grid_diff', 'Q3_diff', 'grid_temp_int',
         'driver_points_prev', 'driver_rank_prev',
         'constructor_points_prev', 'constructor_rank_prev',

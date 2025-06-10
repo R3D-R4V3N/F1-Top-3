@@ -68,6 +68,8 @@ feature_cols = [
     'driver_points_prev', 'driver_rank_prev',
     'constructor_points_prev', 'constructor_rank_prev',
     'finish_rate_prev5',
+    'team_qual_gap',
+
     'circuit_country', 'circuit_city',
         # Overtakes-features
     'overtakes_count',             # absolute aantal inhaalacties vorige races

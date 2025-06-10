@@ -88,6 +88,8 @@ def build_and_train_pipeline(export_csv: bool = True,
         "driver_rank_prev",
         "constructor_points_prev",
         "constructor_rank_prev",
+        'team_qual_gap',
+
         'finish_rate_prev5',
         # Overtake features
         "overtakes_count",

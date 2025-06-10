@@ -26,6 +26,7 @@ def main(export_csv=True, csv_path="model_performance.csv"):
         'finish_rate_prev5',
         'driver_points_prev', 'driver_rank_prev',
         'constructor_points_prev', 'constructor_rank_prev',
+        'team_qual_gap',
 
         # Overtakes-features
         'overtakes_count',             # absolute aantal inhaalacties vorige races
