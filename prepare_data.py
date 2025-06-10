@@ -181,6 +181,9 @@ def main():
     ]
     df[prev_cols] = df[prev_cols].fillna(df[prev_cols].median())
 
+    # Difference between driver and constructor ranks
+    df['rank_diff'] = df['driver_rank_prev'] - df['constructor_rank_prev']
+
     # --- Overtakes per race -------------------------------------------------
     over_frames = []
     for season, rnd in df_results[['season', 'round']].drop_duplicates().itertuples(index=False):
@@ -268,6 +271,24 @@ def main():
         'Location.lat':'circuit_lat', 'Location.long':'circuit_long',
         'Location.locality':'circuit_city', 'Location.country':'circuit_country'
     })
+
+    # Indicator whether the driver races in their home country
+    df['driver_home_race'] = (
+        df['Driver.nationality'] == df['circuit_country']
+    ).astype(int)
+
+    # Map circuits to track type (street vs permanent)
+    track_type_map = {
+        'albert_park': 'street',
+        'baku': 'street',
+        'jeddah': 'street',
+        'marina_bay': 'street',
+        'miami': 'street',
+        'monaco': 'street',
+        'vegas': 'street',
+        'villeneuve': 'street'
+    }
+    df['track_type'] = df['circuitId'].map(track_type_map).fillna('permanent')
 
     # 11. Rolling averages per driver
     df = df.sort_values(['Driver.driverId','date'])
