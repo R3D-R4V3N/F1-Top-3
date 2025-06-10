@@ -20,8 +20,17 @@ from sklearn.metrics import (
 )
 
 
-def build_and_train_pipeline(export_csv: bool = True, csv_path: str = "model_performance.csv"):
-    """Train een LogisticRegression-model en retourneer het beste model en de hyperparameters."""
+def build_and_train_pipeline(export_csv: bool = True, csv_path: str = "logreg_model_performance.csv"):
+    """Train een LogisticRegression-model en retourneer het beste model en de hyperparameters.
+
+    Parameters
+    ----------
+    export_csv : bool, optional
+        Of de evaluatiemetrics naar ``csv_path`` weggeschreven moeten worden.
+    csv_path : str, optional
+        Pad waar de resultaten worden opgeslagen. Standaard ``logreg_model_performance.csv``
+        zodat elk algoritme zijn eigen csv heeft.
+    """
 
     # 1. Laad en sorteer data
     df = pd.read_csv('processed_data.csv', parse_dates=['date'])

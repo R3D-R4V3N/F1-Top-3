@@ -46,7 +46,7 @@ def _extract_clf(pipeline):
 
 
 def build_and_train_pipeline(export_csv: bool = True,
-                             csv_path: str = "model_performance.csv"):
+                             csv_path: str = "stacking_model_performance.csv"):
     """Train a stacking ensemble and optionally export metrics.
 
     Parameters
@@ -54,7 +54,9 @@ def build_and_train_pipeline(export_csv: bool = True,
     export_csv : bool, optional
         Whether to write the evaluation metrics to ``csv_path``.
     csv_path : str, optional
-        Path to save the CSV file with the model's performance.
+        Path to save the CSV file with the model's performance. By default this
+        is ``stacking_model_performance.csv`` so that each model writes to its
+        own dedicated file.
     """
 
     # 1. Load and sort the processed dataset

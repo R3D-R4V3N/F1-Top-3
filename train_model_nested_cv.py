@@ -11,8 +11,17 @@ from sklearn.metrics import (
     roc_auc_score,
 )
 
-def main(export_csv=True, csv_path="model_performance.csv"):
-    """Voert nested cross-validation uit en exporteert optioneel de resultaten."""
+def main(export_csv=True, csv_path="nestedcv_model_performance.csv"):
+    """Voert nested cross-validation uit en exporteert optioneel de resultaten.
+
+    Parameters
+    ----------
+    export_csv : bool, optional
+        Of de evaluatiemetrics naar ``csv_path`` weggeschreven moeten worden.
+    csv_path : str, optional
+        Pad van het csv-bestand. Standaard ``nestedcv_model_performance.csv``
+        zodat het resultaat van deze methode apart wordt opgeslagen.
+    """
 
     # 1. Data laden en sorteren op datum
     df = pd.read_csv('processed_data.csv', parse_dates=['date'])

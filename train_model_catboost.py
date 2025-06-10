@@ -20,8 +20,17 @@ from sklearn.metrics import (
 )
 
 
-def build_and_train_pipeline(export_csv: bool = True, csv_path: str = "model_performance.csv"):
-    """Train een CatBoost-model en retourneer het beste model en de hyperparameters."""
+def build_and_train_pipeline(export_csv: bool = True, csv_path: str = "catboost_model_performance.csv"):
+    """Train een CatBoost-model en retourneer het beste model en de hyperparameters.
+
+    Parameters
+    ----------
+    export_csv : bool, optional
+        Of de evaluatiemetrics naar ``csv_path`` weggeschreven moeten worden.
+    csv_path : str, optional
+        Pad waar de resultaten terechtkomen. Standaard ``catboost_model_performance.csv``
+        zodat elke trainingsscript een eigen bestand gebruikt.
+    """
 
     # 1. Data laden
     df = pd.read_csv('processed_data.csv', parse_dates=['date'])
