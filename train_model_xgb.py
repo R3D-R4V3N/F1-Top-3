@@ -23,7 +23,7 @@ from sklearn.metrics import (
 )
 
 
-def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
+def build_and_train_pipeline(export_csv=True, csv_path="xgb_model_performance.csv"):
     """Train een XGBoost-model en retourneer het beste model samen met de
     optimale hyperparameters.
 
@@ -32,7 +32,9 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     export_csv : bool, optional
         Of de evaluatiemetrics naar ``csv_path`` weggeschreven moeten worden.
     csv_path : str, optional
-        Pad waar het CSV-bestand met prestaties wordt opgeslagen.
+        Pad waar het CSV-bestand met prestaties wordt opgeslagen. Standaard
+        wordt dit ``xgb_model_performance.csv`` zodat iedere trainingsscript
+        zijn eigen resultaten bijhoudt.
     """
 
     # 1. Laad de verwerkte data en sorteer chronologisch

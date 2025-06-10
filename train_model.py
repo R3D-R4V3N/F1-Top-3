@@ -19,7 +19,7 @@ from sklearn.metrics import (
     mean_absolute_error,
 )
 
-def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
+def build_and_train_pipeline(export_csv=True, csv_path="rf_model_performance.csv"):
     """Bouwt de pipeline, traint hem en retourneert het beste model en de
     corresponderende hyperparameters.
 
@@ -28,7 +28,9 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     export_csv : bool, optional
         Of de evaluatiemetrics naar ``csv_path`` weggeschreven moeten worden.
     csv_path : str, optional
-        Pad waar het CSV-bestand met prestaties wordt opgeslagen.
+        Pad waar het CSV-bestand met prestaties wordt opgeslagen. Standaard
+        wordt dit ``rf_model_performance.csv`` zodat elke trainingsscript
+        zijn eigen resultaten bijhoudt.
     """
 
     # 1. Laad de verwerkte data en sorteer chronologisch

@@ -22,7 +22,7 @@ from sklearn.metrics import (
     mean_absolute_error,
 )
 
-def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
+def build_and_train_pipeline(export_csv=True, csv_path="lgbm_model_performance.csv"):
     """Train een LightGBM-model en retourneer het beste model en de bijbehorende
     hyperparameters.
 
@@ -31,7 +31,9 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     export_csv : bool, optional
         Of de evaluatiemetrics naar ``csv_path`` weggeschreven moeten worden.
     csv_path : str, optional
-        Pad waar het CSV-bestand met prestaties wordt opgeslagen.
+        Pad waar het CSV-bestand met prestaties wordt opgeslagen. Standaard
+        wordt dit ``lgbm_model_performance.csv`` zodat iedere algoritme een
+        eigen bestand heeft.
     """
 
     # 1. Laad data en sorteer chronologisch
