@@ -1,6 +1,7 @@
 # prepare_data.py
 
 import pandas as pd
+import numpy as np
 import ast
 from fetch_f1_data import get_lap_data, get_pitstop_data
 
@@ -245,6 +246,10 @@ def main():
     df['date']    = pd.to_datetime(df['date'])
     df['month']   = df['date'].dt.month
     df['weekday'] = df['date'].dt.weekday
+    df['month_sin']   = np.sin(2 * np.pi * df['month'] / 12)
+    df['month_cos']   = np.cos(2 * np.pi * df['month'] / 12)
+    df['weekday_sin'] = np.sin(2 * np.pi * df['weekday'] / 7)
+    df['weekday_cos'] = np.cos(2 * np.pi * df['weekday'] / 7)
 
     # 9. Impute kwalificatietijden per circuit
     # Sorteer op datum zodat we circuit-medians alleen uit voorgaande races

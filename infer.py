@@ -59,7 +59,8 @@ def inference_for_date(cutoff_date):
     # 7. Feature columns exactly as trained
     feature_cols = [
         'grid_position', 'Q1_sec', 'Q2_sec', 'Q3_sec',
-        'month', 'weekday', 'avg_finish_pos', 'avg_grid_pos', 'avg_const_finish',
+        'month', 'weekday', 'month_sin', 'month_cos', 'weekday_sin', 'weekday_cos',
+        'avg_finish_pos', 'avg_grid_pos', 'avg_const_finish',
         'air_temperature', 'track_temperature', 'grid_diff', 'Q3_diff', 'grid_temp_int',
         'driver_points_prev', 'driver_rank_prev',
         'constructor_points_prev', 'constructor_rank_prev',
