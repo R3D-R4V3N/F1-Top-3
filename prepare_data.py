@@ -164,66 +164,6 @@ def main():
         how='left'
     )
 
-    # --- Pit stop stats & tyre degradation ---------------------------------
-    pit_frames = []
-    deg_frames = []
-    for s, r in df_results[['season', 'round']].drop_duplicates().itertuples(index=False):
-        pits = get_pitstop_data(season=s, round=r)
-        laps = get_lap_data(season=s, round=r)
-        if pits is not None and not pits.empty:
-            def _pstop_to_sec(val: str) -> float:
-                if pd.isna(val):
-                    return None
-                try:
-                    if ':' in val:
-                        m, sec = val.split(':')
-                        return int(m) * 60 + float(sec)
-                    return float(val)
-                except Exception:
-                    return None
-            pits['duration_sec'] = pits['stopTime'].apply(_pstop_to_sec)
-            agg = pits.groupby('driverId').agg(
-                num_pitstops=('stop', 'count'),
-                avg_pitstop_duration=('duration_sec', 'mean')
-            ).reset_index()
-            agg['season'] = s
-            agg['round'] = r
-            pit_frames.append(agg)
-
-        if laps is not None and not laps.empty:
-            def _lap_to_sec(t: str) -> float:
-                mins, secs = t.split(':')
-                return int(mins) * 60 + float(secs)
-            laps['lap_sec'] = laps['time'].apply(_lap_to_sec)
-            deg = laps.groupby('driverId')['lap_sec'].agg(['mean', 'min']).reset_index()
-            deg['tyre_degradation_rate'] = deg['mean'] - deg['min']
-            deg = deg[['driverId', 'tyre_degradation_rate']]
-            deg['season'] = s
-            deg['round'] = r
-            deg_frames.append(deg)
-
-    df_pits = pd.concat(pit_frames, ignore_index=True) if pit_frames else pd.DataFrame(
-        columns=['driverId', 'num_pitstops', 'avg_pitstop_duration', 'season', 'round']
-    )
-    df_deg = pd.concat(deg_frames, ignore_index=True) if deg_frames else pd.DataFrame(
-        columns=['driverId', 'tyre_degradation_rate', 'season', 'round']
-    )
-
-    df = df.merge(
-        df_pits.rename(columns={'driverId': 'Driver.driverId'}),
-        on=['season', 'round', 'Driver.driverId'],
-        how='left'
-    )
-    df = df.merge(
-        df_deg.rename(columns={'driverId': 'Driver.driverId'}),
-        on=['season', 'round', 'Driver.driverId'],
-        how='left'
-    )
-
-    df = df.sort_values(['Driver.driverId', 'date'])
-    for col in ['num_pitstops', 'avg_pitstop_duration', 'tyre_degradation_rate']:
-        df[col] = df.groupby('Driver.driverId')[col].shift().fillna(0)
-
     # Use only past races for overtake features to avoid leakage
     df = df.sort_values(['Driver.driverId', 'date'])
     df['overtakes_count'] = (
@@ -260,17 +200,6 @@ def main():
         df[f'{col}_sec'] = pd.to_numeric(
             df[col].dropna().apply(to_seconds), errors='coerce'
         )
-
-    # Qualifying delta: difference between final position and Q2 rank
-    q2_ranks = (
-        df.dropna(subset=['Q2_sec'])
-          .sort_values(['season', 'round', 'Q2_sec'])
-          .groupby(['season', 'round'])
-          .cumcount() + 1
-    )
-    df.loc[~df['Q2_sec'].isna(), 'Q2_rank'] = q2_ranks.values
-    df['qual_delta'] = df['grid_position'] - df['Q2_rank']
-    df['qual_delta'] = df['qual_delta'].fillna(0)
 
     # 8. Datum invoeren
     df['date']    = pd.to_datetime(df['date'])
@@ -347,44 +276,6 @@ def main():
         const_df[['constructorId','season','round','avg_const_finish']],
         on=['season','round','constructorId'], how='left'
     )
-
-    # Circuit top-3 frequency based on historical results
-    res_full = df_results.merge(
-        df_races[['season','round','date','Circuit.circuitId']],
-        on=['season','round','raceName'],
-        how='left'
-    )
-    res_full['finish_position'] = pd.to_numeric(res_full['finish_position'], errors='coerce')
-    res_full['top3'] = res_full['finish_position'] <= 3
-    res_full = res_full.sort_values('date')
-    res_full['cum_top3'] = res_full.groupby('Circuit.circuitId')['top3'].cumsum().shift()
-    res_full['cum_total'] = res_full.groupby('Circuit.circuitId').cumcount()
-    res_full['circuit_top3_freq'] = res_full['cum_top3'] / res_full['cum_total'].replace(0, pd.NA)
-    circ_freq = res_full[['season','round','Circuit.circuitId','circuit_top3_freq']].drop_duplicates(
-        subset=['season','round','Circuit.circuitId']
-    )
-    df = df.merge(
-        circ_freq,
-        left_on=['season','round','Circuit.circuitId'],
-        right_on=['season','round','Circuit.circuitId'],
-        how='left'
-    )
-    df['circuit_top3_freq'] = df['circuit_top3_freq'].fillna(0)
-
-    # Head-to-head vs teammate (running win rate)
-    team_res = res_full[['season','round','date','Driver.driverId','constructorId','finish_position']].dropna(subset=['finish_position'])
-    team_res = team_res.sort_values(['season','round','constructorId','finish_position'])
-    team_res['rank_within_team'] = team_res.groupby(['season','round','constructorId']).cumcount() + 1
-    team_res['beat_teammate'] = team_res['rank_within_team'] == 1
-    hh = team_res[['season','round','Driver.driverId','date','beat_teammate']]
-    hh = hh.sort_values(['Driver.driverId','date'])
-    hh['head_to_head_vs_teammate'] = hh.groupby('Driver.driverId')['beat_teammate'].transform(lambda s: s.shift().expanding().mean())
-    df = df.merge(
-        hh[['season','round','Driver.driverId','head_to_head_vs_teammate']],
-        on=['season','round','Driver.driverId'],
-        how='left'
-    )
-    df['head_to_head_vs_teammate'] = df['head_to_head_vs_teammate'].fillna(0)
 
     # (Weather merge removed)
 

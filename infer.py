@@ -71,13 +71,6 @@ def inference_for_date(cutoff_date):
         'grid_diff', 'Q3_diff',
         'team_qual_gap',
 
-        'num_pitstops',
-        'avg_pitstop_duration',
-        'tyre_degradation_rate',
-        'qual_delta',
-        'circuit_top3_freq',
-        'head_to_head_vs_teammate',
-
         'circuit_country', 'circuit_city',
         # Overtakes-features
         'weighted_overtakes',

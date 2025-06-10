@@ -17,12 +17,6 @@ numeric_feats = [
     'overtakes_per_lap',
     'finish_rate_prev5',
     'team_qual_gap',
-    'num_pitstops',
-    'avg_pitstop_duration',
-    'tyre_degradation_rate',
-    'qual_delta',
-    'circuit_top3_freq',
-    'head_to_head_vs_teammate',
     'weighted_overtakes_per_lap',
     'ewma_overtakes_per_lap',
     'ewma_weighted_overtakes_per_lap'

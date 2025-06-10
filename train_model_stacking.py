@@ -79,13 +79,6 @@ def build_and_train_pipeline(export_csv: bool = True,
         "finish_rate_prev5",
         'team_qual_gap',
 
-        'num_pitstops',
-        'avg_pitstop_duration',
-        'tyre_degradation_rate',
-        'qual_delta',
-        'circuit_top3_freq',
-        'head_to_head_vs_teammate',
-
         # Overtake features
         "weighted_overtakes",
         "overtakes_per_lap",
