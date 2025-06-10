@@ -14,20 +14,23 @@ from train_model_logreg import build_and_train_pipeline as build_logreg
 def save_pipeline(algorithm: str = "rf"):
     """Train en bewaar het pipeline-model voor het gekozen algoritme."""
 
+    best_iter = None
     if algorithm == "rf":
         pipeline, best_params = build_rf()
     elif algorithm == "lgbm":
-        pipeline, best_params = build_lgbm()
+        pipeline, best_params, best_iter = build_lgbm()
     elif algorithm == "xgb":
-        pipeline, best_params = build_xgb()
+        pipeline, best_params, best_iter = build_xgb()
     elif algorithm == "catb":
-        pipeline, best_params = build_catb()
+        pipeline, best_params, best_iter = build_catb()
     elif algorithm == "logreg":
         pipeline, best_params = build_logreg()
     else:
         raise ValueError(f"Onbekend algoritme: {algorithm}")
 
     print("Beste hyperparameters:", best_params)
+    if best_iter is not None:
+        print(f"Best iteration: {best_iter}")
 
     # Fit opnieuw op volledige dataset met deze parameters
     df = pd.read_csv('processed_data.csv')
@@ -35,6 +38,11 @@ def save_pipeline(algorithm: str = "rf"):
     y_full = df['top3']
 
     final_model = clone(pipeline)
+    if best_iter is not None:
+        if algorithm == "catb":
+            final_model.set_params(clf__iterations=best_iter)
+        else:
+            final_model.set_params(clf__n_estimators=best_iter)
     final_model.fit(X_full, y_full)
 
     joblib.dump(final_model, 'f1_top3_pipeline.joblib')
