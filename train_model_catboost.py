@@ -32,7 +32,7 @@ def build_and_train_pipeline(export_csv: bool = True, csv_path: str = "model_per
     numeric_feats = [
         'grid_position', 'Q1_sec', 'Q2_sec', 'Q3_sec',
         'month', 'weekday', 'avg_finish_pos', 'avg_grid_pos', 'avg_const_finish',
-        'air_temperature', 'track_temperature',
+        'air_temperature', 'track_temperature', 'finish_rate_prev5',
         'driver_points_prev', 'driver_rank_prev',
         'constructor_points_prev', 'constructor_rank_prev',
 
