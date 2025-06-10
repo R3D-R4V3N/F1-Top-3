@@ -92,9 +92,17 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     test_races = unique_races.iloc[split_idx:]
     train_mask = df['race_id'].isin(train_races)
     test_mask = df['race_id'].isin(test_races)
-    X_train, X_test = X[train_mask], X[test_mask]
-    y_train, y_test = y[train_mask], y[test_mask]
-    train_groups = groups[train_mask]
+    X_train_full, X_test = X[train_mask], X[test_mask]
+    y_train_full, y_test = y[train_mask], y[test_mask]
+    groups_train_full = groups[train_mask]
+
+    # Laatste fold van GroupTimeSeriesSplit als validatieset
+    gts = GroupTimeSeriesSplit(n_splits=5)
+    splits = list(gts.split(X_train_full, y_train_full, groups=groups_train_full))
+    train_idx, val_idx = splits[-1]
+    X_train, X_val = X_train_full.iloc[train_idx], X_train_full.iloc[val_idx]
+    y_train, y_val = y_train_full.iloc[train_idx], y_train_full.iloc[val_idx]
+    train_groups = groups_train_full[train_idx]
 
     # 4. Preprocessing pipelines
     numeric_transformer = Pipeline([
@@ -133,7 +141,7 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     }
 
     # 7. GridSearchCV met groepsgebaseerde tijdsplits
-    cv = GroupTimeSeriesSplit(n_splits=5)
+    cv = GroupTimeSeriesSplit(n_splits=4)
     grid = GridSearchCV(
         estimator=pipe,
         param_grid=param_grid,
@@ -142,7 +150,14 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
         n_jobs=-1,
         verbose=2
     )
-    grid.fit(X_train, y_train, groups=train_groups)
+    grid.fit(
+        X_train,
+        y_train,
+        groups=train_groups,
+        clf__eval_set=[(X_val, y_val)],
+        clf__early_stopping_rounds=50,
+        clf__verbose=False,
+    )
 
     # 7b. Learning curve to detect over- or underfitting
     train_sizes, train_scores, val_scores = learning_curve(
@@ -200,7 +215,8 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
         perf_df.to_csv(csv_path)
         print(f"Model performance and learning curve saved to {csv_path}")
 
-    return grid.best_estimator_, grid.best_params_
+    best_iter = getattr(grid.best_estimator_.named_steps['clf'], 'best_iteration_', None)
+    return grid.best_estimator_, grid.best_params_, best_iter
 
 def main():
     build_and_train_pipeline()
