@@ -237,7 +237,7 @@ def build_and_train_pipeline(
 
     # Calibrate the best model on the training data
     calibrator = CalibratedClassifierCV(
-        base_estimator=grid.best_estimator_,
+        estimator=grid.best_estimator_,
         method='isotonic',
         cv=GroupTimeSeriesSplit(n_splits=5),
     )
