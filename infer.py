@@ -50,6 +50,11 @@ def inference_for_date(cutoff_date):
           .transform(lambda x: x.shift().expanding().mean())
     )
 
+    df['qual_best_sec'] = df[['Q1_sec', 'Q2_sec', 'Q3_sec']].min(axis=1, skipna=True)
+    team_best = df.groupby(['season', 'round', 'constructorId'])['qual_best_sec'].transform('min')
+    df['team_qual_gap'] = (df['qual_best_sec'] - team_best).fillna(0)
+    df.drop(columns=['qual_best_sec'], inplace=True)
+
     # 5. Select only the rows of the cutoff_date for testing
     df_test = df[df['date'] == cutoff_date].copy()
 
@@ -60,7 +65,7 @@ def inference_for_date(cutoff_date):
     feature_cols = [
         'grid_position', 'Q1_sec', 'Q2_sec', 'Q3_sec',
         'month', 'weekday', 'avg_finish_pos', 'avg_grid_pos', 'avg_const_finish',
-        'air_temperature', 'track_temperature', 'grid_diff', 'Q3_diff', 'grid_temp_int',
+        'air_temperature', 'track_temperature', 'grid_diff', 'Q3_diff', 'grid_temp_int', 'team_qual_gap',
         'driver_points_prev', 'driver_rank_prev',
         'constructor_points_prev', 'constructor_rank_prev',
         'circuit_country', 'circuit_city',
