@@ -11,6 +11,7 @@ F1-Forecast is a small project that predicts which drivers will finish in the to
 | `eda_f1.py` | Simple exploratory analysis on the raw CSV files. |
 | `train_model.py` | Train the main RandomForest pipeline using the processed data. Hyperparameters are tuned with `GridSearchCV`. |
 | `train_model_lgbm.py` | Alternative model using LightGBM. |
+| `train_model_stacking.py` | Stacking ensemble of multiple algorithms. |
 | `train_model_nested_cv.py` | Example of nested cross‑validation for more robust evaluation. |
 | `train_model_xgb.py` | Experimental model using XGBoost. |
 | `export_model.py` | Calls `build_and_train_pipeline()` from the chosen training script, refits the best estimator on the entire dataset and saves the result to `f1_top3_pipeline.joblib`. Use `--algo {rf,lgbm,xgb}` to select the algorithm. |
@@ -68,7 +69,7 @@ F1-Forecast is a small project that predicts which drivers will finish in the to
    - Key metrics and the learning curve results are written to `model_performance.csv` for the Streamlit dashboard.
    - A learning curve is calculated with `sklearn.model_selection.learning_curve` to check for over‑ or underfitting.
 
-   You can experiment with other algorithms via `train_model_lgbm.py`, `train_model_xgb.py` or `train_model_nested_cv.py`. These scripts output a confusion matrix and log their metrics—including learning curve values—to the same `model_performance.csv` file so the dashboard always shows the most recent training results.
+   You can experiment with other algorithms via `train_model_lgbm.py`, `train_model_xgb.py`, `train_model_stacking.py` or `train_model_nested_cv.py`. These scripts output a confusion matrix and log their metrics—including learning curve values—to the same `model_performance.csv` file so the dashboard always shows the most recent training results.
 
 4. **Export trained pipeline**
    ```bash
