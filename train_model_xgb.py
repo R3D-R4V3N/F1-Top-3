@@ -146,6 +146,8 @@ def build_and_train_pipeline(
 
     # 7. GridSearchCV met groepsgebaseerde tijdsplits
     cv = GroupTimeSeriesSplit(n_splits=5)
+    # zet early stopping rondes op het model zelf
+    pipe.set_params(clf__early_stopping_rounds=50)
     grid = GridSearchCV(
         estimator=pipe,
         param_grid=param_grid,
@@ -159,7 +161,6 @@ def build_and_train_pipeline(
         y_train,
         groups=train_groups,
         clf__eval_set=[(X_val, y_val)],
-        clf__early_stopping_rounds=50,
         clf__verbose=False,
     )
     best_iter = grid.best_estimator_.named_steps['clf'].best_iteration
