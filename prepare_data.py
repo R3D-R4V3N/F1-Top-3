@@ -174,12 +174,16 @@ def main():
         on=['season','round','constructorId'], how='left'
     )
 
-    # Fill missing previous-standings with column medians
+    # Fill missing previous-standings using only past values
     prev_cols = [
         'driver_points_prev', 'driver_rank_prev',
         'constructor_points_prev', 'constructor_rank_prev'
     ]
-    df[prev_cols] = df[prev_cols].fillna(df[prev_cols].median())
+    df = df.sort_values(['season', 'round'])
+    for col in prev_cols:
+        running_med = df[col].expanding().median().shift()
+        df[col] = df[col].fillna(running_med)
+        df[col] = df[col].fillna(0)
 
     # --- Overtakes per race -------------------------------------------------
     over_frames = []
@@ -267,8 +271,10 @@ def main():
             df.groupby('Circuit.circuitId')[sec]
               .transform(lambda s: s.expanding().median().shift())
         )
+        global_med = df[sec].expanding().median().shift()
         df[sec] = df[sec].fillna(running_med)
-        df[sec] = df[sec].fillna(df[sec].median())
+        df[sec] = df[sec].fillna(global_med)
+        df[sec] = df[sec].fillna(0)
 
     # 10. Circuit-features
     df = df.merge(
@@ -285,8 +291,11 @@ def main():
                              .transform(lambda x: x.shift().expanding().mean())
     df['avg_grid_pos']   = df.groupby('Driver.driverId')['grid_position']   \
                              .transform(lambda x: x.shift().expanding().mean())
-    df[['avg_finish_pos','avg_grid_pos']] = df[['avg_finish_pos','avg_grid_pos']].fillna(
-        df[['avg_finish_pos','avg_grid_pos']].median())
+    df = df.sort_values('date')
+    for col in ['avg_finish_pos', 'avg_grid_pos']:
+        run_med = df[col].expanding().median().shift()
+        df[col] = df[col].fillna(run_med)
+        df[col] = df[col].fillna(0)
 
     # 12. Rolling averages per constructor
     const_df = df_results.merge(
@@ -297,7 +306,10 @@ def main():
     const_df = const_df.sort_values(['constructorId','season','round'])
     const_df['avg_const_finish'] = const_df.groupby('constructorId')['finish_position'] \
                                        .transform(lambda x: x.shift().expanding().mean())
-    const_df['avg_const_finish'] = const_df['avg_const_finish'].fillna(const_df['avg_const_finish'].median())
+    const_df = const_df.sort_values(['season', 'round'])
+    run_med = const_df['avg_const_finish'].expanding().median().shift()
+    const_df['avg_const_finish'] = const_df['avg_const_finish'].fillna(run_med)
+    const_df['avg_const_finish'] = const_df['avg_const_finish'].fillna(0)
     df = df.merge(
         const_df[['constructorId','season','round','avg_const_finish']],
         on=['season','round','constructorId'], how='left'
@@ -334,9 +346,12 @@ def main():
     df['grid_temp_int'] = df['grid_position'] * df['track_temperature']
 
 
-    # 15. Impute weather
+    # 15. Impute weather using only past observations
+    df = df.sort_values('date')
     for col in ['air_temperature','track_temperature']:
-        df[col] = df[col].fillna(df[col].median())
+        run_med = df[col].expanding().median().shift()
+        df[col] = df[col].fillna(run_med)
+        df[col] = df[col].fillna(0)
 
     # Drop helper cols
     df.drop(columns=['date_only','session_key'], inplace=True)

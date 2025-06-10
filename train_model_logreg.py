@@ -62,7 +62,7 @@ def build_and_train_pipeline(export_csv: bool = True, csv_path: str = "model_per
 
     # 4. Preprocessing
     num_pipe = Pipeline([
-        ('imputer', SimpleImputer(strategy='median')),
+        ('imputer', SimpleImputer(strategy='constant', fill_value=0)),
         ('scaler', StandardScaler())
     ])
     cat_pipe = Pipeline([

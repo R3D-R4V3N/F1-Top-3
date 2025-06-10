@@ -110,7 +110,7 @@ def build_and_train_pipeline(export_csv: bool = True,
     # 4. Shared preprocessing
     num_pipe = Pipeline(
         [
-            ("imputer", SimpleImputer(strategy="median")),
+            ("imputer", SimpleImputer(strategy="constant", fill_value=0)),
             ("scaler", StandardScaler()),
         ]
     )

@@ -40,7 +40,7 @@ def main(export_csv=True, csv_path="model_performance.csv"):
 
     # 2. Preprocessing pipelines
     num_pipe = Pipeline([
-        ('imputer', SimpleImputer(strategy='median')),
+        ('imputer', SimpleImputer(strategy='constant', fill_value=0)),
         ('scaler',  StandardScaler())
     ])
     cat_pipe = Pipeline([
