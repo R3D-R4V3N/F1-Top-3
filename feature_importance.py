@@ -11,19 +11,13 @@ df['race_id'] = df['season'] * 100 + df['round']
 # Feature columns identical to training scripts
 numeric_feats = [
     'grid_position', 'Q1_sec', 'Q2_sec', 'Q3_sec',
-    'month', 'weekday', 'avg_finish_pos', 'avg_grid_pos', 'avg_const_finish',
-    'air_temperature', 'track_temperature', 'humidity', 'pressure', 'rainfall',
-    'wind_speed', 'wind_direction',
-    'grid_diff', 'Q3_diff', 'grid_temp_int',
-    'driver_points_prev', 'driver_rank_prev',
-    'constructor_points_prev', 'constructor_rank_prev',
-    'overtakes_count',
+    'month', 'avg_finish_pos', 'avg_grid_pos', 'avg_const_finish',
+    'grid_diff', 'Q3_diff',
     'weighted_overtakes',
     'overtakes_per_lap',
     'weighted_overtakes_per_lap',
     'ewma_overtakes_per_lap',
-    'ewma_weighted_overtakes_per_lap',
-    'driver_age'
+    'ewma_weighted_overtakes_per_lap'
 ]
 categorical_feats = ['circuit_country', 'circuit_city']
 

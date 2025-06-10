@@ -39,23 +39,17 @@ def build_and_train_pipeline(export_csv: bool = True, csv_path: str = "logreg_mo
     # 2. Features
     numeric_feats = [
         'grid_position', 'Q1_sec', 'Q2_sec', 'Q3_sec',
-        'month', 'weekday', 'avg_finish_pos', 'avg_grid_pos', 'avg_const_finish',
-        'air_temperature', 'track_temperature', 'humidity', 'pressure', 'rainfall',
-        'wind_speed', 'wind_direction',
-        'grid_diff', 'Q3_diff', 'grid_temp_int',
-        'driver_points_prev', 'driver_rank_prev',
-        'constructor_points_prev', 'constructor_rank_prev',
+        'month', 'avg_finish_pos', 'avg_grid_pos', 'avg_const_finish',
+        'grid_diff', 'Q3_diff',
         'finish_rate_prev5',
         'team_qual_gap',
 
         # Overtakes-features
-        'overtakes_count',             # absolute aantal inhaalacties vorige races
-        'weighted_overtakes',          # gewogen aantal inhaalacties
-        'overtakes_per_lap',           # genormaliseerd per lap
-        'weighted_overtakes_per_lap',   # gewogen én genormaliseerd
+        'weighted_overtakes',
+        'overtakes_per_lap',
+        'weighted_overtakes_per_lap',
         'ewma_overtakes_per_lap',
-        'ewma_weighted_overtakes_per_lap',
-        'driver_age'
+        'ewma_weighted_overtakes_per_lap'
     ]
     categorical_feats = ['circuit_country', 'circuit_city']
     df['race_id'] = df['season'] * 100 + df['round']
