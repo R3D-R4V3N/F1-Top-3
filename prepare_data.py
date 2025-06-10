@@ -224,8 +224,18 @@ def main():
         df.groupby('Driver.driverId')['weighted_overtakes']
           .shift()
     )
+    df['overtakes_per_lap'] = (
+        df.groupby('Driver.driverId')['overtakes_per_lap']
+          .shift()
+    )
+    df['weighted_overtakes_per_lap'] = (
+        df.groupby('Driver.driverId')['weighted_overtakes_per_lap']
+          .shift()
+    )
     df['overtakes_count'] = df['overtakes_count'].fillna(0)
     df['weighted_overtakes'] = df['weighted_overtakes'].fillna(0)
+    df['overtakes_per_lap'] = df['overtakes_per_lap'].fillna(0)
+    df['weighted_overtakes_per_lap'] = df['weighted_overtakes_per_lap'].fillna(0)
 
     # 6. Doelvariabele
     df['finish_position'] = pd.to_numeric(df['finish_position'], errors='coerce')
@@ -339,12 +349,12 @@ def main():
     df = df.sort_values(['Driver.driverId', 'date'])
     df['ewma_overtakes_per_lap'] = (
         df.groupby('Driver.driverId')['overtakes_per_lap']
-        .transform(lambda s: s.shift().ewm(span=3, adjust=False).mean())
+        .transform(lambda s: s.ewm(span=3, adjust=False).mean())
     ).fillna(0)
 
     df['ewma_weighted_overtakes_per_lap'] = (
         df.groupby('Driver.driverId')['weighted_overtakes_per_lap']
-        .transform(lambda s: s.shift().ewm(span=3, adjust=False).mean())
+        .transform(lambda s: s.ewm(span=3, adjust=False).mean())
     ).fillna(0)
 
     # 16. Wegschrijven
