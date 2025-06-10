@@ -46,6 +46,7 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
         'air_temperature', 'track_temperature', 'humidity', 'pressure', 'rainfall',
         'wind_speed', 'wind_direction',
         'driver_points_prev', 'driver_rank_prev',
+        'finish_rate_prev5',
         'constructor_points_prev', 'constructor_rank_prev',
 
         # Overtakes-features

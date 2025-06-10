@@ -36,7 +36,7 @@ def build_and_train_pipeline(export_csv: bool = True, csv_path: str = "model_per
         'wind_speed', 'wind_direction',
         'driver_points_prev', 'driver_rank_prev',
         'constructor_points_prev', 'constructor_rank_prev',
-
+        'finish_rate_prev5',
         # Overtakes-features
         'overtakes_count',             # absolute aantal inhaalacties vorige races
         'weighted_overtakes',          # gewogen aantal inhaalacties
