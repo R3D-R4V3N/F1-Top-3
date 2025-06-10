@@ -25,15 +25,7 @@ def prepare_features(df_sub):
     df_sub['driver_avg_Q3']  = df_sub.groupby('Driver.driverId')['Q3_sec']        \
                              .transform(lambda x: x.shift().expanding().mean())
     df_sub['Q3_diff']        = df_sub['driver_avg_Q3'] - df_sub['Q3_sec']
-    df_sub['grid_temp_int']  = df_sub['grid_position'] * df_sub['track_temperature']
-    df_sub['driver_points_prev'] = df_sub.groupby('Driver.driverId')['driver_points']\
-                                   .transform(lambda x: x.shift().expanding().mean())
-    df_sub['driver_rank_prev'] = df_sub.groupby('Driver.driverId')['driver_rank']\
-                                  .transform(lambda x: x.shift().expanding().mean())
-    df_sub['constructor_points_prev'] = df_sub.groupby('constructorId')['constructor_points']\
-                                        .transform(lambda x: x.shift().expanding().mean())
-    df_sub['constructor_rank_prev'] = df_sub.groupby('constructorId')['constructor_rank']\
-                                       .transform(lambda x: x.shift().expanding().mean())
+    # Removed weather and standings features
     return df_sub
 
 # Load data and pipeline with caching
@@ -61,18 +53,13 @@ df_test = df[df['date'] == selected_date]
 
 feature_cols = [
     'grid_position', 'Q1_sec', 'Q2_sec', 'Q3_sec',
-    'month', 'weekday', 'avg_finish_pos', 'avg_grid_pos', 'avg_const_finish',
-    'air_temperature', 'track_temperature', 'humidity', 'pressure', 'rainfall',
-    'wind_speed', 'wind_direction',
-    'grid_diff', 'Q3_diff', 'grid_temp_int',
-    'driver_points_prev', 'driver_rank_prev',
-    'constructor_points_prev', 'constructor_rank_prev',
+    'month', 'avg_finish_pos', 'avg_grid_pos', 'avg_const_finish',
+    'grid_diff', 'Q3_diff',
     'finish_rate_prev5',
     'team_qual_gap',
 
     'circuit_country', 'circuit_city',
         # Overtakes-features
-    'overtakes_count',             # absolute aantal inhaalacties vorige races
     'weighted_overtakes',          # gewogen aantal inhaalacties
     'overtakes_per_lap',           # genormaliseerd per lap
     'weighted_overtakes_per_lap',   # gewogen én genormaliseerd

@@ -106,16 +106,7 @@ def main():
         get_lap_data(season, rnd, use_cache=True)
         get_pitstop_data(season, rnd, use_cache=True)
 
-    # Gemiddelde weersdata per sessie berekenen
-    weather_cols = [
-        'air_temperature', 'track_temperature', 'humidity',
-        'pressure', 'rainfall', 'wind_speed', 'wind_direction'
-    ]
-    weather_agg = (
-        df_weather.groupby('session_key')[weather_cols]
-        .mean()
-        .reset_index()
-    )
+    # (Weather features removed)
 
     # 3. Hernoemen kolommen
     df_qual     = df_qual.rename(columns={'position':'grid_position'})
@@ -138,68 +129,7 @@ def main():
         how='left'
     )
 
-    # --- Driver and constructor standings ---------------------------------
-    driver_records = []
-    for _, row in df_drvstand.iterrows():
-        for entry in ast.literal_eval(row['DriverStandings']):
-            driver_records.append({
-                'season': row['season'],
-                'round': row['round'],
-                'Driver.driverId': entry['Driver']['driverId'],
-                'driver_points': float(entry['points']),
-                'driver_rank': int(entry['position'])
-            })
-    drv_df = pd.DataFrame(driver_records)
-    drv_df = drv_df.sort_values(['Driver.driverId','season','round'])
-    drv_df['driver_points_prev'] = (
-        drv_df.groupby('Driver.driverId')['driver_points']
-              .transform(lambda x: x.shift().expanding().mean())
-    )
-    drv_df['driver_rank_prev'] = (
-        drv_df.groupby('Driver.driverId')['driver_rank']
-              .transform(lambda x: x.shift().expanding().mean())
-    )
-
-    const_records = []
-    for _, row in df_constand.iterrows():
-        for entry in ast.literal_eval(row['ConstructorStandings']):
-            const_records.append({
-                'season': row['season'],
-                'round': row['round'],
-                'constructorId': entry['Constructor']['constructorId'],
-                'constructor_points': float(entry['points']),
-                'constructor_rank': int(entry['position'])
-            })
-    const_df = pd.DataFrame(const_records)
-    const_df = const_df.sort_values(['constructorId','season','round'])
-    const_df['constructor_points_prev'] = (
-        const_df.groupby('constructorId')['constructor_points']
-                .transform(lambda x: x.shift().expanding().mean())
-    )
-    const_df['constructor_rank_prev'] = (
-        const_df.groupby('constructorId')['constructor_rank']
-                .transform(lambda x: x.shift().expanding().mean())
-    )
-
-    df = df.merge(
-        drv_df[['season','round','Driver.driverId','driver_points','driver_rank','driver_points_prev','driver_rank_prev']],
-        on=['season','round','Driver.driverId'], how='left'
-    )
-    df = df.merge(
-        const_df[['season','round','constructorId','constructor_points','constructor_rank','constructor_points_prev','constructor_rank_prev']],
-        on=['season','round','constructorId'], how='left'
-    )
-
-    # Fill missing previous-standings using only past values
-    prev_cols = [
-        'driver_points_prev', 'driver_rank_prev',
-        'constructor_points_prev', 'constructor_rank_prev'
-    ]
-    df = df.sort_values(['season', 'round'])
-    for col in prev_cols:
-        running_med = df[col].expanding().median().shift()
-        df[col] = df[col].fillna(running_med)
-        df[col] = df[col].fillna(0)
+    # (Driver/constructor standings removed)
 
     # --- Overtakes per race -------------------------------------------------
     over_frames = []
@@ -274,9 +204,7 @@ def main():
     # 8. Datum invoeren
     df['date']    = pd.to_datetime(df['date'])
     df['month']   = df['date'].dt.month
-    df['weekday'] = df['date'].dt.weekday
     df['Driver.dateOfBirth'] = pd.to_datetime(df['Driver.dateOfBirth'])
-    df['driver_age'] = (df['date'] - df['Driver.dateOfBirth']).dt.days / 365.25
 
     # 9. Impute kwalificatietijden per circuit
     # Sorteer op datum zodat we circuit-medians alleen uit voorgaande races
@@ -349,20 +277,7 @@ def main():
         on=['season','round','constructorId'], how='left'
     )
 
-    # 13. Qualifying-session mapping voor weerdata
-    df_sessions['date_only'] = df_sessions['date_start'].dt.date
-    qual_sessions = df_sessions[df_sessions['session_type']=='Qualifying'][['date_only','session_key']]
-    df['date_only'] = df['date'].dt.date
-    df = df.merge(qual_sessions, on='date_only', how='left')
-
-    # 14. Weersdata mergen via session_key (geaggregeerd)
-    df = df.merge(
-        weather_agg,
-        on='session_key', how='left'
-    )
-
-    # Mogelijke duplicaten verwijderen na het mergen van weerdata
-    df = df.drop_duplicates(subset=['season','round','Driver.driverId'])
+    # (Weather merge removed)
 
     # … na de existing rolling averages & weather-imputatie …
 
@@ -376,26 +291,11 @@ def main():
     )
     df['Q3_diff'] = driver_q3 - df['Q3_sec']
 
-    # 14c. Interaction grid × track temperature
-    df['grid_temp_int'] = df['grid_position'] * df['track_temperature']
+    # 14c. Interaction grid × track temperature (removed)
 
 
-    # 15. Impute weather
-    weather_cols = [
-        'air_temperature', 'track_temperature', 'humidity',
-        'pressure', 'rainfall', 'wind_speed', 'wind_direction'
-    ]
-    for col in weather_cols:
-        df[col] = df[col].fillna(df[col].median())
-    # 15. Impute weather using only past observations
-    df = df.sort_values('date')
-    for col in ['air_temperature','track_temperature']:
-        run_med = df[col].expanding().median().shift()
-        df[col] = df[col].fillna(run_med)
-        df[col] = df[col].fillna(0)
-
-    # Drop helper cols
-    df.drop(columns=['date_only','session_key'], inplace=True)
+    # 15. Drop helper cols
+    df.drop(columns=['date_only','session_key'], errors='ignore', inplace=True)
 
     # Na:
     df['overtakes_per_lap']         = df['overtakes_per_lap'].fillna(0)
@@ -412,6 +312,15 @@ def main():
         df.groupby('Driver.driverId')['weighted_overtakes_per_lap']
         .transform(lambda s: s.ewm(span=3, adjust=False).mean())
     ).fillna(0)
+
+    drop_cols = [
+        'air_temperature', 'track_temperature', 'humidity', 'pressure',
+        'rainfall', 'wind_speed', 'wind_direction',
+        'constructor_points_prev', 'constructor_rank_prev', 'driver_age',
+        'grid_temp_int', 'driver_points_prev', 'driver_rank_prev',
+        'weekday', 'overtakes_count'
+    ]
+    df.drop(columns=drop_cols, errors='ignore', inplace=True)
 
     # 16. Wegschrijven
     df.to_csv('processed_data.csv', index=False)

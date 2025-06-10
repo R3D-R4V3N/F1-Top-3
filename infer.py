@@ -13,7 +13,6 @@ def inference_for_date(cutoff_date):
     # 3. Sort by date to ensure rolling features use past data
     df = df.sort_values('date')
     df['Driver.dateOfBirth'] = pd.to_datetime(df['Driver.dateOfBirth'])
-    df['driver_age'] = (df['date'] - df['Driver.dateOfBirth']).dt.days / 365.25
 
     # 4. Recompute rolling and interaction features on this subset
     df['avg_finish_pos'] = (
@@ -34,33 +33,9 @@ def inference_for_date(cutoff_date):
           .transform(lambda x: x.shift().expanding().mean())
     )
     df['Q3_diff'] = df['driver_avg_Q3'] - df['Q3_sec']
-    df['grid_temp_int'] = df['grid_position'] * df['track_temperature']
-    df['driver_points_prev'] = (
-        df.groupby('Driver.driverId')['driver_points']
-          .transform(lambda x: x.shift().expanding().mean())
-    )
-    df['driver_rank_prev'] = (
-        df.groupby('Driver.driverId')['driver_rank']
-          .transform(lambda x: x.shift().expanding().mean())
-    )
-    df['constructor_points_prev'] = (
-        df.groupby('constructorId')['constructor_points']
-          .transform(lambda x: x.shift().expanding().mean())
-    )
-    df['constructor_rank_prev'] = (
-        df.groupby('constructorId')['constructor_rank']
-          .transform(lambda x: x.shift().expanding().mean())
-    )
+    # Removed weather & standings based features
 
     # Impute missing values using only past observations
-    prev_cols = [
-        'driver_points_prev', 'driver_rank_prev',
-        'constructor_points_prev', 'constructor_rank_prev'
-    ]
-    for col in prev_cols:
-        run_med = df[col].expanding().median().shift()
-        df[col] = df[col].fillna(run_med)
-        df[col] = df[col].fillna(0)
 
     for sec in ['Q1_sec', 'Q2_sec', 'Q3_sec']:
         run_med = (
@@ -77,10 +52,6 @@ def inference_for_date(cutoff_date):
         df[col] = df[col].fillna(run_med)
         df[col] = df[col].fillna(0)
 
-    for col in ['air_temperature', 'track_temperature']:
-        run_med = df[col].expanding().median().shift()
-        df[col] = df[col].fillna(run_med)
-        df[col] = df[col].fillna(0)
 
     df['qual_best_sec'] = df[['Q1_sec', 'Q2_sec', 'Q3_sec']].min(axis=1, skipna=True)
     team_best = df.groupby(['season', 'round', 'constructorId'])['qual_best_sec'].transform('min')
@@ -96,21 +67,17 @@ def inference_for_date(cutoff_date):
     # 7. Feature columns exactly as trained
     feature_cols = [
         'grid_position', 'Q1_sec', 'Q2_sec', 'Q3_sec',
-        'month', 'weekday', 'avg_finish_pos', 'avg_grid_pos', 'avg_const_finish',
-        'air_temperature', 'track_temperature', 'grid_diff', 'Q3_diff', 'grid_temp_int',
-        'driver_points_prev', 'driver_rank_prev',
-        'constructor_points_prev', 'constructor_rank_prev',
+        'month', 'avg_finish_pos', 'avg_grid_pos', 'avg_const_finish',
+        'grid_diff', 'Q3_diff',
         'team_qual_gap',
 
         'circuit_country', 'circuit_city',
         # Overtakes-features
-        'overtakes_count',             # absolute aantal inhaalacties vorige races
-        'weighted_overtakes',          # gewogen aantal inhaalacties
-        'overtakes_per_lap',           # genormaliseerd per lap
-        'weighted_overtakes_per_lap',   # gewogen én genormaliseerd
+        'weighted_overtakes',
+        'overtakes_per_lap',
+        'weighted_overtakes_per_lap',
         'ewma_overtakes_per_lap',
-        'ewma_weighted_overtakes_per_lap',
-        'driver_age'
+        'ewma_weighted_overtakes_per_lap'
     ]
     X_test = df_test[feature_cols]
 
