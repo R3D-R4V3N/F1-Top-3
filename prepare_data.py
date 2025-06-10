@@ -88,6 +88,12 @@ def main():
     df_qual     = pd.read_csv(files['qual'])
     df_races    = pd.read_csv(files['races'])
     df_results  = pd.read_csv(files['results'])
+    # Boolean indicator whether a driver finished the race
+    df_results['did_finish'] = (
+        df_results['status'].str.contains('Finished', case=False) |
+        df_results['status'].str.match(r'\+\d+ Laps?') |
+        (df_results['status'] == 'Lapped')
+    )
     df_circ     = pd.read_csv(files['circuits'])
     df_sessions = pd.read_csv(files['sessions'], parse_dates=['date_start'])
     df_weather  = pd.read_csv(files['weather'])
@@ -126,8 +132,10 @@ def main():
 
     # 5. Merge race-resultaten inclusief constructorId
     df = df.merge(
-        df_results[['season','round','raceName','Driver.driverId','finish_position','constructorId']],
-        on=['season','round','raceName','Driver.driverId'], how='left'
+        df_results[['season','round','raceName','Driver.driverId',
+                    'finish_position','constructorId','did_finish']],
+        on=['season','round','raceName','Driver.driverId'],
+        how='left'
     )
 
     # --- Driver and constructor standings ---------------------------------
@@ -288,6 +296,16 @@ def main():
         'Location.lat':'circuit_lat', 'Location.long':'circuit_long',
         'Location.locality':'circuit_city', 'Location.country':'circuit_country'
     })
+
+    # Rolling finish rate over previous 5 races per driver
+    df = df.sort_values(['Driver.driverId', 'date'])
+    df['finish_rate_prev5'] = (
+        df.groupby('Driver.driverId')['did_finish']
+          .transform(lambda s: s.shift().rolling(window=5, min_periods=1).mean())
+    )
+    df['finish_rate_prev5'] = df['finish_rate_prev5'].fillna(
+        df['finish_rate_prev5'].median()
+    )
 
     # 11. Rolling averages per driver
     df = df.sort_values(['Driver.driverId','date'])
