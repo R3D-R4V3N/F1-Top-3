@@ -41,9 +41,13 @@ F1-Forecast is a small project that predicts which drivers will finish in the to
    - Add date‑based features (`month`, `weekday`).
    - Compute rolling averages: previous finish position and grid position per driver, plus average constructor finish.
   - Merge weather via `session_key` and impute missing values.
-  - Count on-track overtakes per driver using lap and pit stop data
-    (`overtakes_count`, `weighted_overtakes`). These columns are kept for
-    analysis only and are no longer fed into the model.
+  - Count on-track overtakes per driver using lap and pit stop data.
+    The script calculates `overtakes_count` and `weighted_overtakes` as
+    absolute values, normalises them per lap (`overtakes_per_lap`,
+    `weighted_overtakes_per_lap`) and also keeps exponentially weighted
+    moving averages (`ewma_overtakes_per_lap`,
+    `ewma_weighted_overtakes_per_lap`).
+    These features are included in the model training pipeline.
   - Parse driver and constructor standings to derive previous-season
     points and rank (`driver_points_prev`, `driver_rank_prev`,
     `constructor_points_prev`, `constructor_rank_prev`).
@@ -54,13 +58,16 @@ F1-Forecast is a small project that predicts which drivers will finish in the to
    ```bash
    python train_model.py
    ```
-   - Selects the following feature columns:
-    `grid_position`, `Q1_sec`, `Q2_sec`, `Q3_sec`, `month`, `weekday`,
-    `avg_finish_pos`, `avg_grid_pos`, `avg_const_finish`, `air_temperature`,
-    `track_temperature`, `grid_diff`, `Q3_diff`, `grid_temp_int`,
-    `driver_points_prev`, `driver_rank_prev`,
-    `constructor_points_prev`, `constructor_rank_prev`,
-   `circuit_country`, `circuit_city`.
+    - Selects the following feature columns:
+     `grid_position`, `Q1_sec`, `Q2_sec`, `Q3_sec`, `month`, `weekday`,
+     `avg_finish_pos`, `avg_grid_pos`, `avg_const_finish`, `air_temperature`,
+     `track_temperature`, `grid_diff`, `Q3_diff`, `grid_temp_int`,
+     `driver_points_prev`, `driver_rank_prev`,
+     `constructor_points_prev`, `constructor_rank_prev`,
+     `overtakes_count`, `weighted_overtakes`, `overtakes_per_lap`,
+     `weighted_overtakes_per_lap`, `ewma_overtakes_per_lap`,
+     `ewma_weighted_overtakes_per_lap`,
+    `circuit_country`, `circuit_city`.
    - Numerical features are median‑imputed and scaled; categorical features are one‑hot encoded.
    - A `RandomForestClassifier` is tuned with a small parameter grid.
    - Cross‑validation uses `GroupTimeSeriesSplit` so each fold only sees earlier races and keeps entire events together.
