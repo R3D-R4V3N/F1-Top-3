@@ -126,4 +126,5 @@ python export_model.py --algo rf  # or lgbm/xgb/catb/logreg/stack
 python infer.py  # adjust the date inside to predict a specific race
 ```
 Optionally run the Streamlit dashboard as described above.
+Run `python feature_importance.py` to inspect global feature importance.
 
