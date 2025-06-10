@@ -1,3 +1,4 @@
+import argparse
 import pandas as pd
 import numpy as np
 try:
@@ -34,7 +35,7 @@ from sklearn.metrics import (
     roc_auc_score,
 )
 
-def main(export_csv=True, csv_path="model_performance.csv"):
+def main(export_csv=True, csv_path="model_performance_nested.csv"):
     """Voert nested cross-validation uit en exporteert optioneel de resultaten."""
 
     # 1. Data laden en sorteren op datum
@@ -121,4 +122,11 @@ def main(export_csv=True, csv_path="model_performance.csv"):
         print(f"Model performance saved to {csv_path}")
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(description="Run nested cross-validation")
+    parser.add_argument(
+        "--csv",
+        default="model_performance_nested.csv",
+        help="Output CSV file for metrics",
+    )
+    args = parser.parse_args()
+    main(csv_path=args.csv)

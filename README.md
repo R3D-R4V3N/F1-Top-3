@@ -72,10 +72,10 @@ F1-Forecast is a small project that predicts which drivers will finish in the to
    - A `RandomForestClassifier` is tuned with a small parameter grid.
    - Cross‑validation uses `GroupTimeSeriesSplit` so each fold only sees earlier races and keeps entire events together.
    - Metrics such as ROC‑AUC, confusion matrix, precision/recall and mean absolute error are printed.
-   - Key metrics and the learning curve results are written to `model_performance.csv` for the Streamlit dashboard.
+   - Key metrics and the learning curve results are written to `model_performance_<algo>.csv` for the Streamlit dashboard.
    - A learning curve is calculated with `sklearn.model_selection.learning_curve` to check for over‑ or underfitting.
 
-   You can experiment with other algorithms via `train_model_lgbm.py`, `train_model_xgb.py` or `train_model_nested_cv.py`. These scripts output a confusion matrix and log their metrics—including learning curve values—to the same `model_performance.csv` file so the dashboard always shows the most recent training results.
+   You can experiment with other algorithms via `train_model_lgbm.py`, `train_model_xgb.py` or `train_model_nested_cv.py`. These scripts output a confusion matrix and log their metrics—including learning curve values—to a matching `model_performance_<algo>.csv` file so the dashboard always shows the most recent training results.
 
 4. **Export trained pipeline**
    ```bash

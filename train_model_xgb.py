@@ -1,5 +1,6 @@
 # train_model_xgb.py
 
+import argparse
 import pandas as pd
 import numpy as np
 try:
@@ -46,7 +47,10 @@ from sklearn.metrics import (
 )
 
 
-def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
+def build_and_train_pipeline(
+    export_csv=True,
+    csv_path="model_performance_xgb.csv",
+):
     """Train een XGBoost-model en retourneer het beste model samen met de
     optimale hyperparameters.
 
@@ -203,7 +207,14 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     return grid.best_estimator_, grid.best_params_
 
 def main():
-    build_and_train_pipeline()
+    parser = argparse.ArgumentParser(description="Train XGBoost model")
+    parser.add_argument(
+        "--csv",
+        default="model_performance_xgb.csv",
+        help="Output CSV file for metrics",
+    )
+    args = parser.parse_args()
+    build_and_train_pipeline(csv_path=args.csv)
 
 
 if __name__ == '__main__':

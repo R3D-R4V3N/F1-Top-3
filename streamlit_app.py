@@ -47,6 +47,31 @@ def load_pipeline():
 df = load_data()
 pipeline = load_pipeline()
 
+
+def detect_algorithm(pipe):
+    name = pipe.named_steps['clf'].__class__.__name__.lower()
+    if 'xgb' in name:
+        return 'xgb'
+    if 'lgbm' in name:
+        return 'lgbm'
+    if 'catboost' in name:
+        return 'catboost'
+    if 'logistic' in name:
+        return 'logreg'
+    return 'rf'
+
+
+algo = detect_algorithm(pipeline)
+metrics_path = f"model_performance_{algo}.csv"
+try:
+    perf_df = pd.read_csv(metrics_path, index_col='Metric')
+except FileNotFoundError:
+    perf_df = None
+
+if perf_df is not None:
+    st.sidebar.subheader("Training metrics")
+    st.sidebar.dataframe(perf_df)
+
 # Sidebar for season and race selection
 seasons = sorted(df['season'].unique())
 selected_season = st.sidebar.selectbox('Selecteer seizoen', seasons, index=len(seasons)-1)

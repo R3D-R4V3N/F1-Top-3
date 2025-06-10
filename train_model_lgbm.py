@@ -1,5 +1,6 @@
 # train_model_lgbm.py
 
+import argparse
 import pandas as pd
 import numpy as np
 try:
@@ -45,7 +46,10 @@ from sklearn.metrics import (
     mean_absolute_error,
 )
 
-def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
+def build_and_train_pipeline(
+    export_csv=True,
+    csv_path="model_performance_lgbm.csv",
+):
     """Train een LightGBM-model en retourneer het beste model en de bijbehorende
     hyperparameters.
 
@@ -201,7 +205,14 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     return grid.best_estimator_, grid.best_params_
 
 def main():
-    build_and_train_pipeline()
+    parser = argparse.ArgumentParser(description="Train LightGBM model")
+    parser.add_argument(
+        "--csv",
+        default="model_performance_lgbm.csv",
+        help="Output CSV file for metrics",
+    )
+    args = parser.parse_args()
+    build_and_train_pipeline(csv_path=args.csv)
 
 
 if __name__ == '__main__':
