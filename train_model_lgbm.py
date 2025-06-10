@@ -108,43 +108,46 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     # 4. Preprocessing
     numeric_transformer = Pipeline([
         ('imputer', SimpleImputer(strategy='median')),
-        ('scaler',  StandardScaler())
+        ('scaler', StandardScaler())
     ])
     categorical_transformer = Pipeline([
         ('imputer', SimpleImputer(strategy='constant', fill_value='missing')),
-        ('onehot',  OneHotEncoder(handle_unknown='ignore'))
+        ('onehot', OneHotEncoder(handle_unknown='ignore'))
     ])
     preprocessor = ColumnTransformer([
         ('num', numeric_transformer, numeric_feats),
         ('cat', categorical_transformer, categorical_feats)
     ])
 
-    # 5. Pipeline met LightGBM
-    pipe = Pipeline([
-        ('pre', preprocessor),
-        ('clf', LGBMClassifier(random_state=42))
-    ])
+    # Pas preprocessing één keer toe zodat eval_set geen objectkolommen bevat
+    X_train_proc = preprocessor.fit_transform(X_train)
+    X_val_proc = preprocessor.transform(X_val)
+    X_test_proc = preprocessor.transform(X_test)
+    X_proc = preprocessor.transform(X)
+
+    # 5. LightGBM classifier (zonder Pipeline)
+    clf = LGBMClassifier(random_state=42)
 
     # 6. LightGBM hyperparameter grid
     # Uitgebreider grid met regularisatie-opties
     pos_weight = y_train.value_counts()[0] / y_train.value_counts()[1]
 
     param_grid = {
-        'clf__n_estimators': [200, 500],
-        'clf__learning_rate': [0.01, 0.05, 0.1],
-        'clf__num_leaves': [31, 63, 127],
-        'clf__max_depth': [-1, 5, 10],
-        'clf__min_child_samples': [20, 40],
-        'clf__subsample': [0.8, 1.0],
-        'clf__colsample_bytree': [0.8, 1.0],
-        'clf__reg_lambda': [0.0, 0.1, 1.0],
-        'clf__scale_pos_weight': [1, pos_weight]
+        'n_estimators': [200, 500],
+        'learning_rate': [0.01, 0.05, 0.1],
+        'num_leaves': [31, 63, 127],
+        'max_depth': [-1, 5, 10],
+        'min_child_samples': [20, 40],
+        'subsample': [0.8, 1.0],
+        'colsample_bytree': [0.8, 1.0],
+        'reg_lambda': [0.0, 0.1, 1.0],
+        'scale_pos_weight': [1, pos_weight]
     }
 
     # 7. GridSearchCV met groepsgebaseerde tijdsplits
     cv = GroupTimeSeriesSplit(n_splits=4)
     grid = GridSearchCV(
-        estimator=pipe,
+        estimator=clf,
         param_grid=param_grid,
         scoring='roc_auc',
         cv=cv,
@@ -152,16 +155,16 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
         verbose=2
     )
     grid.fit(
-        X_train,
+        X_train_proc,
         y_train,
         groups=train_groups,
-        clf__eval_set=[(X_val, y_val)],
-        clf__callbacks=[lgb.early_stopping(stopping_rounds=50)],
+        eval_set=[(X_val_proc, y_val)],
+        callbacks=[lgb.early_stopping(stopping_rounds=50)],
     )
 
     # 7b. Learning curve to detect over- or underfitting
     train_sizes, train_scores, val_scores = learning_curve(
-        grid.best_estimator_, X, y,
+        grid.best_estimator_, X_proc, y,
         groups=groups,
         cv=GroupTimeSeriesSplit(n_splits=5),
         scoring='roc_auc',
@@ -180,8 +183,8 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
     print(f"CV ROC AUC: {grid.best_score_:.3f}\n")
 
     # 9. Testset evaluatie
-    y_pred  = grid.predict(X_test)
-    y_proba = grid.predict_proba(X_test)[:, 1]
+    y_pred = grid.predict(X_test_proc)
+    y_proba = grid.predict_proba(X_test_proc)[:, 1]
     print("=== LightGBM Test Performance ===")
     print(classification_report(y_test, y_pred))
     test_auc = roc_auc_score(y_test, y_proba)
@@ -215,8 +218,14 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
         perf_df.to_csv(csv_path)
         print(f"Model performance and learning curve saved to {csv_path}")
 
-    best_iter = getattr(grid.best_estimator_.named_steps['clf'], 'best_iteration_', None)
-    return grid.best_estimator_, grid.best_params_, best_iter
+    best_iter = getattr(grid.best_estimator_, 'best_iteration_', None)
+
+    # Combineer preprocessing en beste model in één Pipeline voor later gebruik
+    best_pipeline = Pipeline([
+        ('pre', preprocessor),
+        ('clf', grid.best_estimator_)
+    ])
+    return best_pipeline, grid.best_params_, best_iter
 
 def main():
     build_and_train_pipeline()
