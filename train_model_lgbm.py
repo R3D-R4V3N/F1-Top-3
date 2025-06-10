@@ -7,12 +7,15 @@ try:
     from sklearn.model_selection import GroupTimeSeriesSplit
 except ImportError:  # scikit-learn < 1.3
     class GroupTimeSeriesSplit:
-        def __init__(self, n_splits: int = 5):
+        def __init__(self, n_splits: int = 5, groups=None):
             self.n_splits = n_splits
+            self.groups = np.array(groups) if groups is not None else None
 
         def split(self, X, y=None, groups=None):
             if groups is None:
-                raise ValueError("The 'groups' parameter is required")
+                if self.groups is None:
+                    raise ValueError("The 'groups' parameter is required")
+                groups = self.groups
             unique_groups = np.unique(groups)
             n_groups = len(unique_groups)
             test_size = n_groups // (self.n_splits + 1)
@@ -239,9 +242,9 @@ def build_and_train_pipeline(
     calibrator = CalibratedClassifierCV(
         estimator=grid.best_estimator_,
         method='isotonic',
-        cv=GroupTimeSeriesSplit(n_splits=5),
+        cv=GroupTimeSeriesSplit(n_splits=5, groups=train_groups),
     )
-    calibrator.fit(X_train_tr, y_train, groups=train_groups)
+    calibrator.fit(X_train_tr, y_train)
 
     # Evaluate calibrated model on the held-out test set
     y_proba_cal = calibrator.predict_proba(X_test_tr)[:, 1]
