@@ -20,7 +20,8 @@ numeric_feats = [
     'overtakes_per_lap',
     'weighted_overtakes_per_lap',
     'ewma_overtakes_per_lap',
-    'ewma_weighted_overtakes_per_lap'
+    'ewma_weighted_overtakes_per_lap',
+    'driver_age'
 ]
 categorical_feats = ['circuit_country', 'circuit_city']
 

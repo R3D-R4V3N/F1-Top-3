@@ -255,6 +255,8 @@ def main():
     df['date']    = pd.to_datetime(df['date'])
     df['month']   = df['date'].dt.month
     df['weekday'] = df['date'].dt.weekday
+    df['Driver.dateOfBirth'] = pd.to_datetime(df['Driver.dateOfBirth'])
+    df['driver_age'] = (df['date'] - df['Driver.dateOfBirth']).dt.days / 365.25
 
     # 9. Impute kwalificatietijden per circuit
     # Sorteer op datum zodat we circuit-medians alleen uit voorgaande races

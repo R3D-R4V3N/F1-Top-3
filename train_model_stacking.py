@@ -89,6 +89,7 @@ def build_and_train_pipeline(export_csv: bool = True,
         "weighted_overtakes_per_lap",
         "ewma_overtakes_per_lap",
         "ewma_weighted_overtakes_per_lap",
+        "driver_age",
     ]
     categorical_feats = ["circuit_country", "circuit_city"]
 

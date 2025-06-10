@@ -12,6 +12,8 @@ def inference_for_date(cutoff_date):
     df = df_full[df_full['date'] <= cutoff_date].copy()
     # 3. Sort by date to ensure rolling features use past data
     df = df.sort_values('date')
+    df['Driver.dateOfBirth'] = pd.to_datetime(df['Driver.dateOfBirth'])
+    df['driver_age'] = (df['date'] - df['Driver.dateOfBirth']).dt.days / 365.25
 
     # 4. Recompute rolling and interaction features on this subset
     df['avg_finish_pos'] = (
@@ -70,7 +72,8 @@ def inference_for_date(cutoff_date):
         'overtakes_per_lap',           # genormaliseerd per lap
         'weighted_overtakes_per_lap',   # gewogen én genormaliseerd
         'ewma_overtakes_per_lap',
-        'ewma_weighted_overtakes_per_lap'
+        'ewma_weighted_overtakes_per_lap',
+        'driver_age'
     ]
     X_test = df_test[feature_cols]
 

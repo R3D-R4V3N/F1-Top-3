@@ -31,7 +31,8 @@ def main(export_csv=True, csv_path="model_performance.csv"):
         'overtakes_per_lap',           # genormaliseerd per lap
         'weighted_overtakes_per_lap',   # gewogen én genormaliseerd
         'ewma_overtakes_per_lap',
-        'ewma_weighted_overtakes_per_lap'
+        'ewma_weighted_overtakes_per_lap',
+        'driver_age'
     ]
     categorical_feats = ['circuit_country','circuit_city']
     X = df[numeric_feats + categorical_feats]
