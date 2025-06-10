@@ -42,8 +42,7 @@ F1-Forecast is a small project that predicts which drivers will finish in the to
    - Compute rolling averages: previous finish position and grid position per driver, plus average constructor finish.
   - Merge weather via `session_key` and impute missing values.
   - Count on-track overtakes per driver using lap and pit stop data
-    (`overtakes_count`, `weighted_overtakes`). These columns are kept for
-    analysis only and are no longer fed into the model.
+    (`overtakes_count`, `weighted_overtakes`, `overtakes_per_lap`, `weighted_overtakes_per_lap`). Values are shifted per driver so only previous races are used; these metrics and their EWMA versions are included as model features.
   - Parse driver and constructor standings to derive previous-season
     points and rank (`driver_points_prev`, `driver_rank_prev`,
     `constructor_points_prev`, `constructor_rank_prev`).
