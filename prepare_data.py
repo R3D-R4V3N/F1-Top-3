@@ -294,6 +294,12 @@ def main():
         df[sec] = df[sec].fillna(global_med)
         df[sec] = df[sec].fillna(0)
 
+    # --- Team qualifying gap -----------------------------------------------
+    df['qual_best_sec'] = df[['Q1_sec', 'Q2_sec', 'Q3_sec']].min(axis=1, skipna=True)
+    team_best = df.groupby(['season', 'round', 'constructorId'])['qual_best_sec'].transform('min')
+    df['team_qual_gap'] = (df['qual_best_sec'] - team_best).fillna(0)
+    df.drop(columns=['qual_best_sec'], inplace=True)
+
     # 10. Circuit-features
     df = df.merge(
         df_circ[['circuitId','circuitName','Location.lat','Location.long','Location.locality','Location.country']],
