@@ -121,7 +121,8 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
         'clf__max_depth':    [None, 5, 10, 20],
         'clf__min_samples_split': [2, 5, 10],
         'clf__min_samples_leaf': [1, 2, 4],
-        'clf__max_features': ['sqrt', 'log2']
+        'clf__max_features': ['sqrt', 'log2'],
+        'clf__class_weight': [None, 'balanced']
     }
 
     # 7. GridSearchCV met groepsgebaseerde tijdsplits

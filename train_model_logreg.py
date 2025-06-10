@@ -108,6 +108,7 @@ def build_and_train_pipeline(export_csv: bool = True, csv_path: str = "model_per
     # 6. Hyperparameter grid
     param_grid = {
         'clf__C': [0.1, 1.0, 10.0],
+        'clf__class_weight': [None, 'balanced'],
     }
 
     # 7. GridSearchCV met GroupTimeSeriesSplit
