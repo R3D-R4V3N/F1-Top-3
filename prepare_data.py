@@ -243,6 +243,9 @@ def main():
 
     # 8. Datum invoeren
     df['date']    = pd.to_datetime(df['date'])
+    df['driver_age'] = (
+        df['date'] - pd.to_datetime(df['Driver.dateOfBirth'])
+    ).dt.days / 365.25
     df['month']   = df['date'].dt.month
     df['weekday'] = df['date'].dt.weekday
 
