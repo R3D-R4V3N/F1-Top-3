@@ -14,16 +14,18 @@ from train_model_logreg import build_and_train_pipeline as build_logreg
 def save_pipeline(algorithm: str = "rf"):
     """Train en bewaar het pipeline-model voor het gekozen algoritme."""
 
+    metrics_csv = f"model_performance_{algorithm}.csv"
+
     if algorithm == "rf":
-        pipeline, best_params = build_rf()
+        pipeline, best_params = build_rf(csv_path=metrics_csv)
     elif algorithm == "lgbm":
-        pipeline, best_params = build_lgbm()
+        pipeline, best_params = build_lgbm(csv_path=metrics_csv)
     elif algorithm == "xgb":
-        pipeline, best_params = build_xgb()
+        pipeline, best_params = build_xgb(csv_path=metrics_csv)
     elif algorithm == "catb":
-        pipeline, best_params = build_catb()
+        pipeline, best_params = build_catb(csv_path=metrics_csv)
     elif algorithm == "logreg":
-        pipeline, best_params = build_logreg()
+        pipeline, best_params = build_logreg(csv_path=metrics_csv)
     else:
         raise ValueError(f"Onbekend algoritme: {algorithm}")
 
