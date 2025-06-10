@@ -15,6 +15,8 @@ numeric_feats = [
     'grid_diff', 'Q3_diff',
     'weighted_overtakes',
     'overtakes_per_lap',
+    'finish_rate_prev5',
+    'team_qual_gap',
     'weighted_overtakes_per_lap',
     'ewma_overtakes_per_lap',
     'ewma_weighted_overtakes_per_lap'
