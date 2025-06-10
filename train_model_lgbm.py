@@ -35,6 +35,7 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from lightgbm import LGBMClassifier
+import lightgbm as lgb
 from sklearn.metrics import (
     classification_report,
     roc_auc_score,
@@ -155,8 +156,7 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
         y_train,
         groups=train_groups,
         clf__eval_set=[(X_val, y_val)],
-        clf__early_stopping_rounds=50,
-        clf__verbose=False,
+        clf__callbacks=[lgb.early_stopping(stopping_rounds=50)],
     )
 
     # 7b. Learning curve to detect over- or underfitting
