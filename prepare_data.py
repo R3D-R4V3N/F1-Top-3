@@ -349,9 +349,10 @@ def main():
     )
 
     # Circuit top-3 frequency based on historical results
+    # (raceName included in races slice to prevent merge KeyError)
     res_full = df_results.merge(
-        df_races[['season','round','raceName','date','Circuit.circuitId']],
-        on=['season','round','raceName'],
+        df_races[["season", "round", "raceName", "date", "Circuit.circuitId"]],
+        on=['season', 'round', 'raceName'],
         how='left'
     )
     res_full['finish_position'] = pd.to_numeric(res_full['finish_position'], errors='coerce')
