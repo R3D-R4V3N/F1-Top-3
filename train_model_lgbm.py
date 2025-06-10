@@ -44,8 +44,13 @@ from sklearn.metrics import (
     auc,
     mean_absolute_error,
 )
+from sklearn.calibration import CalibratedClassifierCV
 
-def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
+def build_and_train_pipeline(
+    export_csv: bool = True,
+    csv_path: str = "model_performance.csv",
+    calib_csv_path: str = "model_performance_calibrated.csv",
+):
     """Train een LightGBM-model en retourneer het beste model en de bijbehorende
     hyperparameters.
 
@@ -198,7 +203,37 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
         perf_df.to_csv(csv_path)
         print(f"Model performance and learning curve saved to {csv_path}")
 
-    return grid.best_estimator_, grid.best_params_
+    # Calibrate the best pipeline on training data
+    calibrator = CalibratedClassifierCV(
+        base_estimator=grid.best_estimator_,
+        method='isotonic',
+        cv=GroupTimeSeriesSplit(n_splits=5),
+    )
+    calibrator.fit(X_train, y_train, groups=train_groups)
+
+    # Evaluate calibrated model on the held-out test set
+    y_proba_cal = calibrator.predict_proba(X_test)[:, 1]
+    test_auc_cal = roc_auc_score(y_test, y_proba_cal)
+    mae_cal = mean_absolute_error(y_test, y_proba_cal)
+    prec_cal, recall_cal, _ = precision_recall_curve(y_test, y_proba_cal)
+    pr_auc_cal = auc(recall_cal, prec_cal)
+
+    print("\n=== Calibrated Test Performance ===")
+    print(f"ROC AUC: {test_auc_cal:.3f}")
+    print(f"PR AUC: {pr_auc_cal:.3f}")
+    print(f"MAE: {mae_cal:.3f}")
+
+    if export_csv:
+        calib_df = pd.DataFrame(
+            {
+                'Metric': ['ROC AUC', 'PR AUC', 'Mean Abs Error'],
+                'Value': [test_auc_cal, pr_auc_cal, mae_cal],
+            }
+        ).set_index('Metric')
+        calib_df.to_csv(calib_csv_path)
+        print(f"Calibrated model performance saved to {calib_csv_path}")
+
+    return calibrator, grid.best_params_
 
 def main():
     build_and_train_pipeline()
