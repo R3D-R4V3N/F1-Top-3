@@ -79,7 +79,7 @@ def build_and_train_pipeline(export_csv=True, csv_path="model_performance.csv"):
 
     # 4. Preprocessing pipelines
     numeric_transformer = Pipeline([
-        ('imputer', SimpleImputer(strategy='median')),
+        ('imputer', SimpleImputer(strategy='constant', fill_value=0)),
         ('scaler', StandardScaler())
     ])
     categorical_transformer = Pipeline([

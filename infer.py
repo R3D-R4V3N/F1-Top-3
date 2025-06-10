@@ -52,6 +52,36 @@ def inference_for_date(cutoff_date):
           .transform(lambda x: x.shift().expanding().mean())
     )
 
+    # Impute missing values using only past observations
+    prev_cols = [
+        'driver_points_prev', 'driver_rank_prev',
+        'constructor_points_prev', 'constructor_rank_prev'
+    ]
+    for col in prev_cols:
+        run_med = df[col].expanding().median().shift()
+        df[col] = df[col].fillna(run_med)
+        df[col] = df[col].fillna(0)
+
+    for sec in ['Q1_sec', 'Q2_sec', 'Q3_sec']:
+        run_med = (
+            df.groupby('Circuit.circuitId')[sec]
+              .transform(lambda s: s.expanding().median().shift())
+        )
+        global_med = df[sec].expanding().median().shift()
+        df[sec] = df[sec].fillna(run_med)
+        df[sec] = df[sec].fillna(global_med)
+        df[sec] = df[sec].fillna(0)
+
+    for col in ['avg_finish_pos', 'avg_grid_pos', 'avg_const_finish']:
+        run_med = df[col].expanding().median().shift()
+        df[col] = df[col].fillna(run_med)
+        df[col] = df[col].fillna(0)
+
+    for col in ['air_temperature', 'track_temperature']:
+        run_med = df[col].expanding().median().shift()
+        df[col] = df[col].fillna(run_med)
+        df[col] = df[col].fillna(0)
+
     # 5. Select only the rows of the cutoff_date for testing
     df_test = df[df['date'] == cutoff_date].copy()
 
