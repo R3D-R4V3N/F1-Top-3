@@ -129,7 +129,41 @@ def main():
         how='left'
     )
 
-    # (Driver/constructor standings removed)
+    # --- Driver/constructor standings ---------------------------------------
+    drv_records = []
+    for _, row in df_drvstand.iterrows():
+        season = int(row['season'])
+        standings = ast.literal_eval(row['DriverStandings'])
+        for d in standings:
+            drv_records.append({
+                'season': season + 1,
+                'Driver.driverId': d['Driver']['driverId'],
+                'driver_points_prev': float(d['points']),
+                'driver_rank_prev': int(d['position'])
+            })
+    drv_prev = pd.DataFrame(drv_records)
+
+    const_records = []
+    for _, row in df_constand.iterrows():
+        season = int(row['season'])
+        standings = ast.literal_eval(row['ConstructorStandings'])
+        for c in standings:
+            const_records.append({
+                'season': season + 1,
+                'constructorId': c['Constructor']['constructorId'],
+                'constructor_points_prev': float(c['points']),
+                'constructor_rank_prev': int(c['position'])
+            })
+    const_prev = pd.DataFrame(const_records)
+
+    df = df.merge(drv_prev, on=['season', 'Driver.driverId'], how='left')
+    df = df.merge(const_prev, on=['season', 'constructorId'], how='left')
+
+    for col in [
+        'driver_points_prev', 'driver_rank_prev',
+        'constructor_points_prev', 'constructor_rank_prev'
+    ]:
+        df[col] = df[col].fillna(df[col].median())
 
     # --- Overtakes per race -------------------------------------------------
     over_frames = []
@@ -316,8 +350,7 @@ def main():
     drop_cols = [
         'air_temperature', 'track_temperature', 'humidity', 'pressure',
         'rainfall', 'wind_speed', 'wind_direction',
-        'constructor_points_prev', 'constructor_rank_prev', 'driver_age',
-        'grid_temp_int', 'driver_points_prev', 'driver_rank_prev',
+        'driver_age', 'grid_temp_int',
         'weekday', 'overtakes_count'
     ]
     df.drop(columns=drop_cols, errors='ignore', inplace=True)

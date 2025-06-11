@@ -43,6 +43,8 @@ def build_and_train_pipeline(export_csv: bool = True, csv_path: str = "logreg_mo
         'grid_diff', 'Q3_diff',
         'finish_rate_prev5',
         'team_qual_gap',
+        'driver_points_prev', 'driver_rank_prev',
+        'constructor_points_prev', 'constructor_rank_prev',
 
         # Overtakes-features
         'weighted_overtakes',

@@ -44,6 +44,8 @@ def build_and_train_pipeline(export_csv=True, csv_path="rf_model_performance.csv
         'month', 'avg_finish_pos', 'avg_grid_pos', 'avg_const_finish',
         'finish_rate_prev5',
         'team_qual_gap',
+        'driver_points_prev', 'driver_rank_prev',
+        'constructor_points_prev', 'constructor_rank_prev',
 
         'grid_diff', 'Q3_diff',
 
