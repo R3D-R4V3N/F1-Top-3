@@ -84,6 +84,10 @@ def build_and_train_pipeline(export_csv: bool = True,
         ('cat', cat_pipe, categorical_feats)
     ])
 
+    # Fit once so we can transform the validation set used for early stopping
+    preprocessor.fit(X_train)
+    X_test_preprocessed = preprocessor.transform(X_test)
+
     # 5. Pipeline met CatBoost
     pipe = Pipeline([
         ('pre', preprocessor),
@@ -95,11 +99,14 @@ def build_and_train_pipeline(export_csv: bool = True,
     pos_weight = y_train.value_counts()[0] / y_train.value_counts()[1]
 
     param_grid = {
-        'clf__iterations': [200, 500],
+        'clf__iterations': [500, 800, 1000],
         'clf__depth': [4, 6, 8],
         'clf__learning_rate': [0.03, 0.1],
         'clf__l2_leaf_reg': [1, 3],
         'clf__subsample': [0.8, 1.0],
+        'clf__bagging_temperature': [0.5, 1.0],
+        'clf__random_strength': [1.0, 2.0],
+        'clf__border_count': [128, 254],
         'clf__class_weights': [[1.0, pos_weight]],
     }
 
@@ -113,7 +120,15 @@ def build_and_train_pipeline(export_csv: bool = True,
         n_jobs=-1,
         verbose=2,
     )
-    grid.fit(X_train, y_train, groups=train_groups)
+    grid.fit(
+        X_train,
+        y_train,
+        groups=train_groups,
+        **{
+            'clf__eval_set': (X_test_preprocessed, y_test),
+            'clf__early_stopping_rounds': 40,
+        }
+    )
 
     # 7b. Learning curve
     train_sizes, train_scores, val_scores = learning_curve(
