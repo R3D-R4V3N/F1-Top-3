@@ -1,11 +1,36 @@
 import os
 import pandas as pd
+import numpy as np
 import joblib
-from sklearn.inspection import permutation_importance
+from sklearn.metrics import roc_auc_score
 
 from export_model import save_pipeline
 
 ALGORITHMS = ["rf", "lgbm", "xgb", "catb", "logreg", "stack"]
+
+
+def manual_permutation_importance(model, X, y, n_repeats=10, random_state=42):
+    """Compute permutation importance using ROC AUC without relying on
+    `permutation_importance`'s scoring logic.
+
+    This avoids issues when the loaded pipeline does not expose a default
+    `score` method that is compatible with the scorer utility.
+    """
+
+    rng = np.random.RandomState(random_state)
+    baseline = roc_auc_score(y, model.predict_proba(X)[:, 1])
+    importances = np.zeros((X.shape[1], n_repeats))
+
+    for n in range(n_repeats):
+        for i, col in enumerate(X.columns):
+            X_permuted = X.copy()
+            X_permuted[col] = rng.permutation(X_permuted[col].values)
+            permuted_score = roc_auc_score(
+                y, model.predict_proba(X_permuted)[:, 1]
+            )
+            importances[i, n] = baseline - permuted_score
+
+    return importances.mean(axis=1), importances.std(axis=1)
 
 print("Loading processed_data.csv...")
 df = pd.read_csv('processed_data.csv', parse_dates=['date'])
@@ -45,16 +70,15 @@ for algo in ALGORITHMS:
     pipeline = joblib.load('f1_top3_pipeline.joblib')
 
     print(f"Computing permutation importance for {algo}...")
-    result = permutation_importance(
-        pipeline, X_test, y_test,
-        n_repeats=10, random_state=42, n_jobs=-1
+    means, stds = manual_permutation_importance(
+        pipeline, X_test, y_test, n_repeats=10, random_state=42
     )
 
     importance_df = (
         pd.DataFrame({
             'feature': X_test.columns,
-            'importance_mean': result.importances_mean,
-            'importance_std': result.importances_std
+            'importance_mean': means,
+            'importance_std': stds,
         })
         .sort_values('importance_mean', ascending=False)
     )
