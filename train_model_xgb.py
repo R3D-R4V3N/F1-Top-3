@@ -68,10 +68,21 @@ def build_and_train_pipeline(export_csv=True, csv_path="xgb_model_performance.cs
     split_idx = int(len(unique_races) * 0.8)
     train_races = unique_races.iloc[:split_idx]
     test_races = unique_races.iloc[split_idx:]
-    train_mask = df['race_id'].isin(train_races)
     test_mask = df['race_id'].isin(test_races)
-    X_train, X_test = X[train_mask], X[test_mask]
-    y_train, y_test = y[train_mask], y[test_mask]
+    X_test = X[test_mask]
+    y_test = y[test_mask]
+
+    # 3b. Split a validation portion from the training data for early stopping
+    unique_train_races = train_races.reset_index(drop=True)
+    val_split = int(len(unique_train_races) * 0.9)
+    final_train_races = unique_train_races.iloc[:val_split]
+    val_races = unique_train_races.iloc[val_split:]
+
+    train_mask = df['race_id'].isin(final_train_races)
+    val_mask = df['race_id'].isin(val_races)
+
+    X_train, X_val = X[train_mask], X[val_mask]
+    y_train, y_val = y[train_mask], y[val_mask]
     train_groups = groups[train_mask]
 
     # 4. Preprocessing pipelines
@@ -120,7 +131,11 @@ def build_and_train_pipeline(export_csv=True, csv_path="xgb_model_performance.cs
         n_jobs=-1,
         verbose=2
     )
-    grid.fit(X_train, y_train, groups=train_groups)
+    fit_params = {
+        'clf__eval_set': [(X_val, y_val)],
+        'clf__early_stopping_rounds': 50,
+    }
+    grid.fit(X_train, y_train, groups=train_groups, **fit_params)
 
     # 7b. Learning curve to detect over- or underfitting
     train_sizes, train_scores, val_scores = learning_curve(
@@ -157,10 +172,20 @@ def build_and_train_pipeline(export_csv=True, csv_path="xgb_model_performance.cs
     precision_vals, recall_vals, _ = precision_recall_curve(y_test, y_proba)
     pr_auc = auc(recall_vals, precision_vals)
 
+    clf_best = grid.best_estimator_.named_steps['clf']
+    if hasattr(clf_best, 'best_iteration'):
+        best_iter = clf_best.best_iteration
+    elif hasattr(clf_best, 'best_iteration_'):
+        best_iter = clf_best.best_iteration_
+    elif hasattr(clf_best, 'get_best_iteration'):
+        best_iter = clf_best.get_best_iteration()
+    else:
+        best_iter = None
+
     if export_csv:
         base_metrics = {
-            'Metric': ['CV ROC AUC', 'Test ROC AUC', 'Mean Abs Error', 'PR AUC'],
-            'Value': [grid.best_score_, test_auc, mae, pr_auc],
+            'Metric': ['CV ROC AUC', 'Test ROC AUC', 'Mean Abs Error', 'PR AUC', 'Best Iteration'],
+            'Value': [grid.best_score_, test_auc, mae, pr_auc, best_iter],
         }
 
         lc_metrics = []
