@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import numpy as np
 from utils.time_series import GroupTimeSeriesSplit
@@ -11,7 +12,8 @@ from sklearn.metrics import (
     roc_auc_score,
 )
 
-def main(export_csv=True, csv_path="nestedcv_model_performance.csv"):
+def main(export_csv=True,
+         csv_path="model_performance/nestedcv_model_performance.csv"):
     """Voert nested cross-validation uit en exporteert optioneel de resultaten.
 
     Parameters
@@ -101,6 +103,7 @@ def main(export_csv=True, csv_path="nestedcv_model_performance.csv"):
             'Metric': ['Nested CV ROC AUC Mean', 'Nested CV ROC AUC Std'],
             'Value': [scores.mean(), scores.std()]
         }).set_index('Metric')
+        os.makedirs(os.path.dirname(csv_path), exist_ok=True)
         perf_df.to_csv(csv_path)
         print(f"Model performance saved to {csv_path}")
 

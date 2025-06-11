@@ -60,12 +60,12 @@ F1-Forecast is a small project that predicts which drivers will finish in the to
    - A `RandomForestClassifier` is tuned with a small parameter grid.
    - Cross‑validation uses `GroupTimeSeriesSplit` so each fold only sees earlier races and keeps entire events together.
    - Metrics such as ROC‑AUC, confusion matrix, precision/recall and mean absolute error are printed.
-   - Key metrics and the learning curve results are written to a dedicated CSV
-     file (e.g. `rf_model_performance.csv`) so each algorithm keeps its own
-     results for the Streamlit dashboard.
+  - Key metrics and the learning curve results are written to a dedicated CSV
+    file under `model_performance/` (e.g. `model_performance/rf_model_performance.csv`)
+    so each algorithm keeps its own results for the Streamlit dashboard.
    - A learning curve is calculated with `sklearn.model_selection.learning_curve` to check for over‑ or underfitting.
 
-   You can experiment with other algorithms via `train_model_lgbm.py`, `train_model_xgb.py`, `train_model_catboost.py`, `train_model_logreg.py`, `train_model_stacking.py` or `train_model_nested_cv.py`. Each of these scripts now writes its metrics to a separate file like `lgbm_model_performance.csv` or `xgb_model_performance.csv`, keeping results isolated while still allowing the dashboard to read the latest run per algorithm.
+   You can experiment with other algorithms via `train_model_lgbm.py`, `train_model_xgb.py`, `train_model_catboost.py`, `train_model_logreg.py`, `train_model_stacking.py` or `train_model_nested_cv.py`. Each of these scripts now writes its metrics to a separate file such as `model_performance/lgbm_model_performance.csv` or `model_performance/xgb_model_performance.csv`, keeping results isolated while still allowing the dashboard to read the latest run per algorithm.
 
 4. **Export trained pipeline**
    ```bash
@@ -123,5 +123,6 @@ python export_model.py --algo rf  # or lgbm/xgb/catb/logreg/stack
 python infer.py  # adjust the date inside to predict a specific race
 ```
 Optionally run the Streamlit dashboard as described above.
-Run `python feature_importance.py` to inspect global feature importance.
+Run `python feature_importance_per_model.py` to compute permutation importances
+for each algorithm. The resulting CSV files are saved under `feature_importances/`.
 
