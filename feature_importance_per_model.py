@@ -6,7 +6,7 @@ from sklearn.metrics import roc_auc_score
 
 from export_model import save_pipeline
 
-ALGORITHMS = ["rf", "lgbm", "xgb", "catb", "logreg", "stack"]
+ALGORITHMS = ["catb"]
 
 
 def manual_permutation_importance(model, X, y, n_repeats=10, random_state=42):
@@ -67,7 +67,7 @@ os.makedirs('feature_importances', exist_ok=True)
 
 for algo in ALGORITHMS:
     print(f"\nTraining and exporting {algo} model...")
-    save_pipeline(algo)
+    save_pipeline()
     pipeline = joblib.load('f1_top3_pipeline.joblib')
 
     print(f"Computing permutation importance for {algo}...")

@@ -9,12 +9,8 @@ F1-Forecast is a small project that predicts which drivers will finish in the to
 | `fetch_f1_data.py` | Download raw data from the OpenF1 and Jolpica APIs. Weather and session data come from OpenF1, while historical race and qualifying data come from Jolpica (an Ergast-compatible API). Functions `get_lap_data()`, `get_pitstop_data()`, `fetch_openf1_data()` and `fetch_jolpica_data()` all accept a `use_cache` flag. Lap and pit stop CSVs are cached under `cache/`, while the other helpers skip downloads if their output files already exist. |
 | `prepare_data.py` | Merge the downloaded CSV files into `processed_data.csv`. It engineers features such as qualifying times in seconds, rolling averages per driver and constructor, weather information and custom interaction features. |
 | `eda_f1.py` | Simple exploratory analysis on the raw CSV files. |
-| `train_model.py` | Train the main RandomForest pipeline using the processed data. Hyperparameters are tuned with `GridSearchCV`. |
-| `train_model_lgbm.py` | Alternative model using LightGBM. |
-| `train_model_nested_cv.py` | Example of nested cross‑validation for more robust evaluation. |
-| `train_model_xgb.py` | Experimental model using XGBoost. |
-| `train_model_stacking.py` | Ensemble model that stacks tuned RandomForest, LightGBM and XGBoost classifiers with a logistic regression meta learner. |
-| `export_model.py` | Calls `build_and_train_pipeline()` from the chosen training script, refits the best estimator on the entire dataset and saves the result to `f1_top3_pipeline.joblib`. Use `--algo {rf,lgbm,xgb,catb,logreg,stack}` to select the algorithm. |
+| `train_model_catboost.py` | Train the CatBoost pipeline on the processed data. Hyperparameters are tuned with `GridSearchCV`. |
+| `export_model.py` | Fits the CatBoost model on the full dataset and saves the pipeline to `f1_top3_pipeline.joblib`. |
 | `infer.py` | Recomputes features with past races only and calls `inference_for_date()` to generate predictions for a chosen race date. |
 | `streamlit_app.py` | Streamlit dashboard to interactively explore predictions. |
 | `f1_api_docs.md` | Documentation snippets of the OpenF1 and Jolpica APIs. |
@@ -48,7 +44,7 @@ F1-Forecast is a small project that predicts which drivers will finish in the to
 
 3. **Train model**
    ```bash
-   python train_model.py
+   python train_model_catboost.py
    ```
    - Selects the following feature columns:
     `grid_position`, `Q1_sec`, `Q2_sec`, `Q3_sec`, `month`,
@@ -57,23 +53,19 @@ F1-Forecast is a small project that predicts which drivers will finish in the to
     `finish_rate_prev5`, `team_qual_gap`,
    `circuit_country`, `circuit_city` plus weighted overtake features.
    - Numerical features are imputed with a running median (fallback to ``0``) and scaled; categorical features are one‑hot encoded.
-   - A `RandomForestClassifier` is tuned with a small parameter grid.
+   - A `CatBoostClassifier` is tuned with a small parameter grid.
    - Cross‑validation uses `GroupTimeSeriesSplit` so each fold only sees earlier races and keeps entire events together.
    - Metrics such as ROC‑AUC, confusion matrix, precision/recall and mean absolute error are printed.
-  - Key metrics and the learning curve results are written to a dedicated CSV
-    file under `model_performance/` (e.g. `model_performance/rf_model_performance.csv`)
-    so each algorithm keeps its own results for the Streamlit dashboard.
+  - Key metrics and the learning curve results are written to `model_performance/catboost_model_performance.csv` for the Streamlit dashboard.
    - A learning curve is calculated with `sklearn.model_selection.learning_curve` to check for over‑ or underfitting.
 
-   You can experiment with other algorithms via `train_model_lgbm.py`, `train_model_xgb.py`, `train_model_catboost.py`, `train_model_logreg.py`, `train_model_stacking.py` or `train_model_nested_cv.py`. Each of these scripts now writes its metrics to a separate file such as `model_performance/lgbm_model_performance.csv` or `model_performance/xgb_model_performance.csv`, keeping results isolated while still allowing the dashboard to read the latest run per algorithm.
 
 4. **Export trained pipeline**
    ```bash
-   python export_model.py --algo lgbm  # or rf/xgb/catb/logreg/stack
+   python export_model.py
    ```
-   Saves the best pipeline from the selected algorithm. `export_model.py`
-   clones the tuned estimator, fits it on the entire dataset and writes the
-   resulting pipeline to `f1_top3_pipeline.joblib`.
+   `export_model.py` fits the tuned CatBoost estimator on the entire dataset
+   and writes the resulting pipeline to `f1_top3_pipeline.joblib`.
 
 5. **Make predictions**
    ```bash
@@ -95,7 +87,7 @@ F1-Forecast is a small project that predicts which drivers will finish in the to
 When new race data becomes available:
 1. Run `fetch_f1_data.py` again. The script fetches data for all seasons starting from 2022, so rerunning it will append the latest results and weather.
 2. Recreate `processed_data.csv` with `prepare_data.py`.
-3. Retrain the model (`train_model.py`) and export the updated pipeline with `export_model.py --algo rf|lgbm|xgb|catb|logreg|stack`.
+3. Retrain the model (`train_model_catboost.py`) and export the updated pipeline with `export_model.py`.
 4. Use `infer.py` (or import `inference_for_date()`) to generate predictions for the new race with features recalculated from prior events.
 
 ## Data sources
@@ -107,9 +99,9 @@ See `f1_api_docs.md` for example queries and field descriptions.
 
 ## Requirements
 
-This project relies on common Python data‑science packages such as `pandas`, `scikit‑learn`, `joblib`, `lightgbm`, `xgboost` and `streamlit`. Install them via pip:
+This project relies on common Python data‑science packages such as `pandas`, `scikit‑learn`, `joblib`, `catboost` and `streamlit`. Install them via pip:
 ```bash
-pip install pandas scikit-learn joblib lightgbm xgboost streamlit
+pip install pandas scikit-learn joblib catboost streamlit
 ```
 
 ## Reproducing the full pipeline
@@ -118,11 +110,10 @@ From a clean checkout:
 ```bash
 python fetch_f1_data.py
 python prepare_data.py
-python train_model.py
-python export_model.py --algo rf  # or lgbm/xgb/catb/logreg/stack
+python train_model_catboost.py
+python export_model.py
 python infer.py  # adjust the date inside to predict a specific race
 ```
 Optionally run the Streamlit dashboard as described above.
-Run `python feature_importance_per_model.py` to compute permutation importances
-for each algorithm. The resulting CSV files are saved under `feature_importances/`.
+Run `python feature_importance_per_model.py` to compute permutation importances using the CatBoost model. The resulting CSV file is saved under `feature_importances/`.
 
