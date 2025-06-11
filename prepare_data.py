@@ -1,6 +1,7 @@
 # prepare_data.py
 
 import pandas as pd
+import numpy as np
 import ast
 from fetch_f1_data import get_lap_data, get_pitstop_data
 
@@ -96,9 +97,49 @@ def main():
     )
     df_circ     = pd.read_csv(files['circuits'])
     df_sessions = pd.read_csv(files['sessions'], parse_dates=['date_start'])
-    df_weather  = pd.read_csv(files['weather'])
+    df_weather  = pd.read_csv(files['weather'], parse_dates=['date'])
     df_drvstand = pd.read_csv('jolpica_driverstandings.csv')
     df_constand = pd.read_csv('jolpica_constructorstandings.csv')
+
+    # --- Weather features -------------------------------------------------
+    location_to_circuit = {
+        'Austin': 'americas', 'Baku': 'baku', 'Barcelona': 'catalunya',
+        'Budapest': 'hungaroring', 'Imola': 'imola', 'Jeddah': 'jeddah',
+        'Las Vegas': 'vegas', 'Lusail': 'losail', 'Marina Bay': 'marina_bay',
+        'Melbourne': 'albert_park', 'Mexico City': 'rodriguez', 'Miami': 'miami',
+        'Monaco': 'monaco', 'Montréal': 'villeneuve', 'Monza': 'monza',
+        'Sakhir': 'bahrain', 'Shanghai': 'shanghai', 'Silverstone': 'silverstone',
+        'Spa-Francorchamps': 'spa', 'Spielberg': 'red_bull_ring',
+        'Suzuka': 'suzuka', 'São Paulo': 'interlagos', 'Yas Island': 'yas_marina',
+        'Zandvoort': 'zandvoort'
+    }
+
+    race_sessions = df_sessions[df_sessions['session_type'] == 'Race'].copy()
+    race_sessions['circuitId'] = race_sessions['location'].map(location_to_circuit)
+    race_sessions['gmt_offset'] = pd.to_timedelta(race_sessions['gmt_offset']).dt.total_seconds() / 3600
+
+    weather_rows = []
+    for _, row in race_sessions.iterrows():
+        sess = df_weather[df_weather['session_key'] == row['session_key']]
+        if sess.empty:
+            continue
+        window = sess[(sess['date'] >= row['date_start']) &
+                      (sess['date'] <= row['date_start'] + pd.Timedelta(minutes=30))]
+        if window.empty:
+            continue
+        agg = window[['air_temperature', 'track_temperature', 'humidity',
+                      'pressure', 'rainfall', 'wind_speed', 'wind_direction']].mean()
+        agg['season'] = row['year']
+        agg['circuitId'] = row['circuitId']
+        agg['gmt_offset'] = row['gmt_offset']
+        weather_rows.append(agg)
+
+    weather_df = pd.DataFrame(weather_rows)
+
+    # DataFrame met GMT-offset per race
+    gmt_df = race_sessions[['year', 'circuitId', 'gmt_offset']].rename(
+        columns={'year': 'season'}
+    )
 
     # Preload lap and pit stop data with caching
     unique_races = df_races[['season', 'round']].drop_duplicates()
@@ -205,6 +246,8 @@ def main():
     df['date']    = pd.to_datetime(df['date'])
     df['month']   = df['date'].dt.month
     df['Driver.dateOfBirth'] = pd.to_datetime(df['Driver.dateOfBirth'])
+    df['driver_age'] = (df['date'] - df['Driver.dateOfBirth']).dt.days / 365.25
+    df['weekday'] = df['date'].dt.weekday
 
     # 9. Impute kwalificatietijden per circuit
     # Sorteer op datum zodat we circuit-medians alleen uit voorgaande races
@@ -236,6 +279,27 @@ def main():
         'Location.lat':'circuit_lat', 'Location.long':'circuit_long',
         'Location.locality':'circuit_city', 'Location.country':'circuit_country'
     })
+
+    # GMT-offset per race
+    df = df.merge(gmt_df, on=['season', 'circuitId'], how='left')
+
+    # Voeg samengevoegde weergegevens toe per race
+    if not weather_df.empty:
+        df = df.merge(
+            weather_df,
+            on=['season', 'circuitId'],
+            how='left'
+        )
+        df['grid_temp_int'] = df['grid_position'] * df['track_temperature']
+    else:
+        df['grid_temp_int'] = 0
+        df['air_temperature'] = np.nan
+        df['track_temperature'] = np.nan
+        df['humidity'] = np.nan
+        df['pressure'] = np.nan
+        df['rainfall'] = np.nan
+        df['wind_speed'] = np.nan
+        df['wind_direction'] = np.nan
 
     # Rolling finish rate over previous 5 races per driver
     df = df.sort_values(['Driver.driverId', 'date'])
@@ -277,9 +341,7 @@ def main():
         on=['season','round','constructorId'], how='left'
     )
 
-    # (Weather merge removed)
-
-    # … na de existing rolling averages & weather-imputatie …
+    # … na de existing rolling averages & weer-imputatie …
 
     # 14a. Grid-difference feature
     df['grid_diff'] = df['avg_grid_pos'] - df['grid_position']
@@ -314,11 +376,9 @@ def main():
     ).fillna(0)
 
     drop_cols = [
-        'air_temperature', 'track_temperature', 'humidity', 'pressure',
-        'rainfall', 'wind_speed', 'wind_direction',
-        'constructor_points_prev', 'constructor_rank_prev', 'driver_age',
-        'grid_temp_int', 'driver_points_prev', 'driver_rank_prev',
-        'weekday', 'overtakes_count'
+        'constructor_points_prev', 'constructor_rank_prev',
+        'driver_points_prev', 'driver_rank_prev',
+        'overtakes_count'
     ]
     df.drop(columns=drop_cols, errors='ignore', inplace=True)
 
