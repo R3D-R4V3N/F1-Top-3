@@ -14,10 +14,8 @@ compared easily.
 import pandas as pd
 import numpy as np
 from utils.time_series import GroupTimeSeriesSplit
+from utils import get_feature_lists, build_preprocessor
 
-from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import StackingClassifier
@@ -65,37 +63,7 @@ def build_and_train_pipeline(export_csv: bool = True,
     df["race_id"] = df["season"] * 100 + df["round"]
 
     # 2. Feature lists and target
-    numeric_feats = [
-        "grid_position",
-        "Q1_sec",
-        "Q2_sec",
-        "Q3_sec",
-        "month",
-        "avg_finish_pos",
-        "avg_grid_pos",
-        "avg_const_finish",
-        "grid_diff",
-        "Q3_diff",
-        "finish_rate_prev5",
-        'team_qual_gap',
-        'driver_points_prev', 'driver_rank_prev',
-        'constructor_points_prev', 'constructor_rank_prev',
-
-        'num_pitstops',
-        'avg_pitstop_duration',
-        'tyre_degradation_rate',
-        'qual_delta',
-        'circuit_top3_freq',
-        'head_to_head_vs_teammate',
-
-        # Overtake features
-        "weighted_overtakes",
-        "overtakes_per_lap",
-        "weighted_overtakes_per_lap",
-        "ewma_overtakes_per_lap",
-        "ewma_weighted_overtakes_per_lap",
-    ]
-    categorical_feats = ["circuit_country", "circuit_city"]
+    numeric_feats, categorical_feats = get_feature_lists()
 
     X = df[numeric_feats + categorical_feats]
     y = df["top3"]
@@ -113,24 +81,7 @@ def build_and_train_pipeline(export_csv: bool = True,
     train_groups = groups[train_mask]
 
     # 4. Shared preprocessing
-    num_pipe = Pipeline(
-        [
-            ("imputer", SimpleImputer(strategy="constant", fill_value=0)),
-            ("scaler", StandardScaler()),
-        ]
-    )
-    cat_pipe = Pipeline(
-        [
-            ("imputer", SimpleImputer(strategy="constant", fill_value="missing")),
-            ("onehot", OneHotEncoder(handle_unknown="ignore")),
-        ]
-    )
-    preprocessor = ColumnTransformer(
-        [
-            ("num", num_pipe, numeric_feats),
-            ("cat", cat_pipe, categorical_feats),
-        ]
-    )
+    preprocessor = build_preprocessor()
 
     # 5. Obtain tuned base estimators
     rf_pipe, _ = build_rf(export_csv=False)
