@@ -1,5 +1,6 @@
 # train_model.py
 
+import os
 import pandas as pd
 import numpy as np
 from utils.time_series import GroupTimeSeriesSplit
@@ -19,7 +20,8 @@ from sklearn.metrics import (
     mean_absolute_error,
 )
 
-def build_and_train_pipeline(export_csv=True, csv_path="rf_model_performance.csv"):
+def build_and_train_pipeline(export_csv=True,
+                             csv_path="model_performance/rf_model_performance.csv"):
     """Bouwt de pipeline, traint hem en retourneert het beste model en de
     corresponderende hyperparameters.
 
@@ -172,6 +174,7 @@ def build_and_train_pipeline(export_csv=True, csv_path="rf_model_performance.csv
         all_values = base_metrics['Value'] + lc_values
 
         perf_df = pd.DataFrame({'Metric': all_metrics, 'Value': all_values}).set_index('Metric')
+        os.makedirs(os.path.dirname(csv_path), exist_ok=True)
         perf_df.to_csv(csv_path)
         print(f"Model performance and learning curve saved to {csv_path}")
 

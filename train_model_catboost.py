@@ -1,5 +1,6 @@
 # train_model_catboost.py
 
+import os
 import pandas as pd
 import numpy as np
 from utils.time_series import GroupTimeSeriesSplit
@@ -20,7 +21,8 @@ from sklearn.metrics import (
 )
 
 
-def build_and_train_pipeline(export_csv: bool = True, csv_path: str = "catboost_model_performance.csv"):
+def build_and_train_pipeline(export_csv: bool = True,
+                             csv_path: str = "model_performance/catboost_model_performance.csv"):
     """Train een CatBoost-model en retourneer het beste model en de hyperparameters.
 
     Parameters
@@ -165,6 +167,7 @@ def build_and_train_pipeline(export_csv: bool = True, csv_path: str = "catboost_
         all_values = base_metrics['Value'] + lc_values
 
         perf_df = pd.DataFrame({'Metric': all_metrics, 'Value': all_values}).set_index('Metric')
+        os.makedirs(os.path.dirname(csv_path), exist_ok=True)
         perf_df.to_csv(csv_path)
         print(f"Model performance and learning curve saved to {csv_path}")
 
