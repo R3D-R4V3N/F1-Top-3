@@ -115,5 +115,5 @@ python export_model.py
 python infer.py  # adjust the date inside to predict a specific race
 ```
 Optionally run the Streamlit dashboard as described above.
-Run `python feature_importance_per_model.py` to compute permutation importances using the CatBoost model. The resulting CSV file is saved under `feature_importances/`.
+Run `python feature_importance_catboost.py` to compute permutation importances using the CatBoost model. The resulting CSV file is saved under `feature_importances/`.
 

@@ -1,12 +1,13 @@
+"""Compute permutation feature importance for the CatBoost pipeline."""
+
 import os
-import pandas as pd
-import numpy as np
+
 import joblib
+import numpy as np
+import pandas as pd
 from sklearn.metrics import roc_auc_score
 
 from export_model import save_pipeline
-
-ALGORITHMS = ["catb"]
 
 
 def manual_permutation_importance(model, X, y, n_repeats=10, random_state=42):
@@ -57,7 +58,6 @@ y = df['top3']
 
 unique_races = df['race_id'].drop_duplicates()
 split_idx = int(len(unique_races) * 0.8)
-train_races = unique_races.iloc[:split_idx]
 test_races = unique_races.iloc[split_idx:]
 test_mask = df['race_id'].isin(test_races)
 X_test = X[test_mask]
@@ -65,25 +65,24 @@ y_test = y[test_mask]
 
 os.makedirs('feature_importances', exist_ok=True)
 
-for algo in ALGORITHMS:
-    print(f"\nTraining and exporting {algo} model...")
-    save_pipeline()
-    pipeline = joblib.load('f1_top3_pipeline.joblib')
+print("Training and exporting CatBoost model...")
+save_pipeline()
+pipeline = joblib.load('f1_top3_pipeline.joblib')
 
-    print(f"Computing permutation importance for {algo}...")
-    means, stds = manual_permutation_importance(
-        pipeline, X_test, y_test, n_repeats=10, random_state=42
-    )
+print("Computing permutation importance for CatBoost...")
+means, stds = manual_permutation_importance(
+    pipeline, X_test, y_test, n_repeats=10, random_state=42
+)
 
-    importance_df = (
-        pd.DataFrame({
-            'feature': X_test.columns,
-            'importance_mean': means,
-            'importance_std': stds,
-        })
-        .sort_values('importance_mean', ascending=False)
-    )
+importance_df = (
+    pd.DataFrame({
+        'feature': X_test.columns,
+        'importance_mean': means,
+        'importance_std': stds,
+    })
+    .sort_values('importance_mean', ascending=False)
+)
 
-    csv_path = f'feature_importances/{algo}_feature_importance.csv'
-    importance_df.to_csv(csv_path, index=False)
-    print(f"Saved {csv_path}")
+csv_path = 'feature_importances/catboost_feature_importance.csv'
+importance_df.to_csv(csv_path, index=False)
+print(f"Saved {csv_path}")
