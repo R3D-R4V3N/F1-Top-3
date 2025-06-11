@@ -3,13 +3,11 @@
 import pandas as pd
 import numpy as np
 from utils.time_series import GroupTimeSeriesSplit
+from utils.features import get_feature_lists, build_preprocessor
 from sklearn.model_selection import (
     GridSearchCV,
     learning_curve,
 )
-from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from xgboost import XGBClassifier
 from sklearn.metrics import (
@@ -42,22 +40,8 @@ def build_and_train_pipeline(export_csv=True, csv_path="xgb_model_performance.cs
     df = df.sort_values('date')
     df['race_id'] = df['season'] * 100 + df['round']
 
-    # 2. Definieer features en target
-    numeric_feats = [
-        'grid_position', 'Q1_sec', 'Q2_sec', 'Q3_sec',
-        'month', 'avg_finish_pos', 'avg_grid_pos', 'avg_const_finish',
-        'finish_rate_prev5',
-        'grid_diff', 'Q3_diff',
-        'team_qual_gap',
-
-        # Overtakes-features
-        'weighted_overtakes',
-        'overtakes_per_lap',
-        'weighted_overtakes_per_lap',
-        'ewma_overtakes_per_lap',
-        'ewma_weighted_overtakes_per_lap'
-    ]
-    categorical_feats = ['circuit_country','circuit_city']
+    # 2. Definieer features en target via gedeelde util
+    numeric_feats, categorical_feats = get_feature_lists()
 
     X = df[numeric_feats + categorical_feats]
     y = df['top3']
@@ -74,19 +58,8 @@ def build_and_train_pipeline(export_csv=True, csv_path="xgb_model_performance.cs
     y_train, y_test = y[train_mask], y[test_mask]
     train_groups = groups[train_mask]
 
-    # 4. Preprocessing pipelines
-    numeric_transformer = Pipeline([
-        ('imputer', SimpleImputer(strategy='constant', fill_value=0)),
-        ('scaler', StandardScaler())
-    ])
-    categorical_transformer = Pipeline([
-        ('imputer', SimpleImputer(strategy='constant', fill_value='missing')),
-        ('onehot', OneHotEncoder(handle_unknown='ignore'))
-    ])
-    preprocessor = ColumnTransformer([
-        ('num', numeric_transformer, numeric_feats),
-        ('cat', categorical_transformer, categorical_feats)
-    ])
+    # 4. Preprocessing pipeline
+    preprocessor = build_preprocessor()
 
     # 5. Pipeline met XGBoost
     pipe = Pipeline([
