@@ -42,20 +42,18 @@ def build_and_train_pipeline(export_csv: bool = True,
     # 2. Features en target
     numeric_feats = [
         'grid_position', 'Q1_sec', 'Q2_sec', 'Q3_sec',
-        'month', 'avg_finish_pos',
-        'team_qual_gap',
+        'month', 'avg_finish_pos', 'avg_grid_pos',
+        'avg_const_finish', 'finish_rate_prev5', 'team_qual_gap',
+        'grid_diff', 'Q3_diff', 'driver_age', 'weekday', 'gmt_offset',
+        'air_temperature', 'track_temperature', 'humidity', 'pressure',
+        'rainfall', 'wind_speed', 'wind_direction', 'grid_temp_int',
 
         # Overtakes-features
-        'weighted_overtakes',
-        'overtakes_per_lap',
-        'weighted_overtakes_per_lap',
-        'ewma_overtakes_per_lap',
+        'weighted_overtakes', 'overtakes_per_lap',
+        'weighted_overtakes_per_lap', 'ewma_overtakes_per_lap',
         'ewma_weighted_overtakes_per_lap'
     ]
-    # ``avg_grid_pos``, ``avg_const_finish`` en ``finish_rate_prev5`` hadden
-    # een (bijna) nul of negatieve feature importance volgens
-    # ``feature_importances/catb_feature_importance.csv`` en zijn daarom
-    # verwijderd uit de trainingsfeatures.
+
     categorical_feats = ['circuit_country', 'circuit_city']
 
     X = df[numeric_feats + categorical_feats]
@@ -98,14 +96,11 @@ def build_and_train_pipeline(export_csv: bool = True,
     pos_weight = y_train.value_counts()[0] / y_train.value_counts()[1]
 
     param_grid = {
-        'clf__iterations': [200, 500, 1000],
-        'clf__depth': [4, 6, 8, 10],
-        'clf__learning_rate': [0.01, 0.03, 0.1],
-        'clf__l2_leaf_reg': [1, 3, 5],
-        'clf__subsample': [0.7, 0.8, 1.0],
-        'clf__random_strength': [0, 1],
-        'clf__bagging_temperature': [0, 1, 2],
-        'clf__border_count': [64, 128],
+        'clf__iterations': [200, 400],
+        'clf__depth': [6, 8],
+        'clf__learning_rate': [0.05, 0.1],
+        'clf__l2_leaf_reg': [3],
+        'clf__subsample': [0.8, 1.0],
         'clf__class_weights': [[1.0, pos_weight]],
     }
 
