@@ -61,8 +61,14 @@ def inference_for_date(cutoff_date):
     # 5. Select only the rows of the cutoff_date for testing
     df_test = df[df['date'] == cutoff_date].copy()
 
-    # 6. Load the serialized pipeline
-    pipeline = joblib.load('f1_top3_pipeline.joblib')
+    # 6. Load the serialized pipeline and stored threshold
+    saved_obj = joblib.load('f1_top3_pipeline.joblib')
+    if isinstance(saved_obj, dict):
+        pipeline = saved_obj.get('model')
+        threshold = saved_obj.get('threshold', 0.41)
+    else:
+        pipeline = saved_obj
+        threshold = 0.41
 
     # 7. Feature columns exactly as trained
     feature_cols = [
@@ -84,7 +90,7 @@ def inference_for_date(cutoff_date):
     # 8. Predict probabilities and apply threshold
     proba = pipeline.predict_proba(X_test)[:, 1]
     df_test['top3_proba'] = proba
-    df_test['top3_pred']  = proba >= 0.41
+    df_test['top3_pred']  = proba >= threshold
 
     # 9. Show top-3 unique drivers
     top3 = (
