@@ -1,55 +1,27 @@
-# export_model.py
-
 import argparse
 import joblib
-from sklearn.base import clone
 import pandas as pd
+from sklearn.base import clone
 
-from train_model import build_and_train_pipeline as build_rf
-from train_model_lgbm import build_and_train_pipeline as build_lgbm
-from train_model_xgb import build_and_train_pipeline as build_xgb
-from train_model_catboost import build_and_train_pipeline as build_catb
-from train_model_logreg import build_and_train_pipeline as build_logreg
-from train_model_stacking import build_and_train_pipeline as build_stack
+from train_model_catboost import build_and_train_pipeline
 
-def save_pipeline(algorithm: str = "rf"):
-    """Train en bewaar het pipeline-model voor het gekozen algoritme."""
 
-    if algorithm == "rf":
-        pipeline, best_params = build_rf()
-    elif algorithm == "lgbm":
-        pipeline, best_params = build_lgbm()
-    elif algorithm == "xgb":
-        pipeline, best_params = build_xgb()
-    elif algorithm == "catb":
-        pipeline, best_params = build_catb()
-    elif algorithm == "logreg":
-        pipeline, best_params = build_logreg()
-    elif algorithm == "stack":
-        pipeline, best_params = build_stack()
-    else:
-        raise ValueError(f"Onbekend algoritme: {algorithm}")
+def save_pipeline():
+    """Train and save the CatBoost pipeline on the full dataset."""
+    model, _ = build_and_train_pipeline()
 
-    print("Beste hyperparameters:", best_params)
+    df = pd.read_csv("processed_data.csv")
+    X = df[["race_id", "season", "driverId", "constructorId"]]
+    y = df["top3"]
 
-    # Fit opnieuw op volledige dataset met deze parameters
-    df = pd.read_csv('processed_data.csv')
-    X_full = df.drop(columns=['top3'])
-    y_full = df['top3']
+    final_model = clone(model)
+    final_model.fit(X, y, cat_features=[2, 3])
 
-    final_model = clone(pipeline)
-    final_model.fit(X_full, y_full)
+    joblib.dump(final_model, "f1_top3_pipeline.joblib")
+    print("Pipeline saved to f1_top3_pipeline.joblib")
 
-    joblib.dump(final_model, 'f1_top3_pipeline.joblib')
-    print("Pipeline opgeslagen als f1_top3_pipeline.joblib")
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Exporteer een getrainde pipeline")
-    parser.add_argument(
-        "--algo",
-        choices=["rf", "lgbm", "xgb", "catb", "logreg", "stack"],
-        default="rf",
-        help="Welk algoritme moet worden getraind en opgeslagen"
-    )
-    args = parser.parse_args()
-    save_pipeline(args.algo)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Export trained pipeline")
+    _ = parser.parse_args()
+    save_pipeline()
