@@ -1,5 +1,3 @@
-# train_model_catboost.py
-
 import os
 import pandas as pd
 import numpy as np
@@ -10,7 +8,7 @@ from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
-from catboost import CatBoostClassifier
+from catboost import CatBoostClassifier, utils
 from sklearn.metrics import (
     classification_report,
     roc_auc_score,
@@ -84,14 +82,36 @@ def build_and_train_pipeline(export_csv: bool = True,
         ('cat', cat_pipe, categorical_feats)
     ])
 
-    # 5. Pipeline met CatBoost
+    # 5. Detecteer GPU of val op CPU
+    try:
+        gpu_count = utils.get_gpu_device_count()
+    except Exception:
+        gpu_count = 0
+
+    if gpu_count > 0:
+        task_type = 'GPU'
+        devices = '0'
+        print(f"GPU gedetecteerd ({gpu_count} beschikbaar), gebruik GPU training.")
+    else:
+        task_type = 'CPU'
+        devices = None
+        print("Geen GPU gevonden, fallback naar CPU training.")
+
+    cb_kwargs = {
+        'random_state': 42,
+        'verbose': 0,
+        'task_type': task_type
+    }
+    if devices:
+        cb_kwargs['devices'] = devices
+
+    # 6. Pipeline met CatBoost
     pipe = Pipeline([
         ('pre', preprocessor),
-        ('clf', CatBoostClassifier(random_state=42, verbose=0))
+        ('clf', CatBoostClassifier(**cb_kwargs))
     ])
 
-    # 6. Hyperparameter grid
-    # class imbalance handling
+    # 7. Hyperparameter grid
     pos_weight = y_train.value_counts()[0] / y_train.value_counts()[1]
 
     param_grid = {
@@ -103,7 +123,7 @@ def build_and_train_pipeline(export_csv: bool = True,
         'clf__class_weights': [[1.0, pos_weight]],
     }
 
-    # 7. GridSearchCV
+    # 8. GridSearchCV en training
     cv = GroupTimeSeriesSplit(n_splits=5)
     grid = GridSearchCV(
         pipe,
@@ -115,7 +135,7 @@ def build_and_train_pipeline(export_csv: bool = True,
     )
     grid.fit(X_train, y_train, groups=train_groups)
 
-    # 7b. Learning curve
+    # 9. Learning curve
     train_sizes, train_scores, val_scores = learning_curve(
         grid.best_estimator_, X, y,
         groups=groups,
@@ -130,7 +150,7 @@ def build_and_train_pipeline(export_csv: bool = True,
     for sz, tr, val in zip(train_sizes, train_mean, val_mean):
         print(f"  {int(sz)} samples -> train {tr:.3f}, val {val:.3f}")
 
-    # 8. Resultaten
+    # 10. Evaluatie en export
     print("=== CatBoost Best Params & CV ROC AUC ===")
     print(grid.best_params_)
     print(f"Best CV ROC AUC: {grid.best_score_:.3f}\n")
@@ -179,4 +199,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    main()  # aangepast om eerst GPU beschikbaarheid te checken fileciteturn0file0
